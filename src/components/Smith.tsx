@@ -2,15 +2,15 @@ import { memo, useMemo } from 'react'
 import type { SmithLook } from '../domain/types'
 import { useProfile } from '../db/hooks'
 import { toRuns } from './sprites/pixelart'
-import { SMITH_H, SMITH_W, drawSmith } from './sprites/art/smith'
+import { drawSmith } from './sprites/art/smith'
 import { BALD, DEFAULT_LOOK, NO_BEARD, paletteFor } from './sprites/art/palette'
 
 export type Stance = 'forja' | 'ficha'
 
 /**
- * Mascote: o ferreiro em pixel art desenhado à mão, conforme a patente (0–4).
+ * Mascote: o ferreiro em pixel art, conforme a patente (0–4).
  * Usa a aparência salva no perfil; `look` sobrepõe (prévia da personalização, boas-vindas).
- * Postura "forja": martelo na mão, respirando. "ficha": sem martelo, parado (tela de medidas).
+ * Postura "forja": martelando na bigorna. "ficha": de pé, sem martelo, parado (tela de medidas).
  */
 export const Smith = memo(function Smith({
   tier,
@@ -31,18 +31,16 @@ export const Smith = memo(function Smith({
 }) {
   const profile = useProfile()
   const l = look ?? profile?.smith ?? DEFAULT_LOOK
-  const frames = useMemo(
+  const { w, h, frames } = useMemo(
     () => {
       const shape = { bald: l.hair === BALD, beardless: l.beard === NO_BEARD, orc: l.skin === 'orc' }
       const pal = paletteFor(l)
-      if (stance !== 'forja') return [toRuns(drawSmith(tier, shape, { hammer: false }), pal)]
-      // quadros: 0 parado · 1 respira · 2 ergue o martelo · 3 impacto (ordem da animação no CSS)
-      return [
-        drawSmith(tier, shape, { frame: 0 }),
-        drawSmith(tier, shape, { frame: 1 }),
-        drawSmith(tier, shape, { frame: 0, pose: 'raise' }),
-        drawSmith(tier, shape, { frame: 1, pose: 'impact' }),
-      ].map((f) => toRuns(f, pal))
+      // quadros: 0 martelo erguido · 1 martelada (ordem da animação no CSS)
+      const sprites =
+        stance === 'forja'
+          ? [drawSmith(tier, shape, { frame: 0 }), drawSmith(tier, shape, { frame: 1 })]
+          : [drawSmith(tier, shape, { hammer: false })]
+      return { w: sprites[0].w, h: sprites[0].h, frames: sprites.map((f) => toRuns(f, pal)) }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tier, l.skin, l.hair, l.beard, stance],
@@ -50,9 +48,9 @@ export const Smith = memo(function Smith({
   const moving = animate && stance === 'forja'
   return (
     <svg
-      viewBox={`0 0 ${SMITH_W} ${SMITH_H}`}
+      viewBox={`0 0 ${w} ${h}`}
       width={size}
-      height={(size * SMITH_H) / SMITH_W}
+      height={(size * h) / w}
       shapeRendering="crispEdges"
       className={`smith ${moving ? 'smith-anim' : ''} ${className ?? ''}`}
       role="img"

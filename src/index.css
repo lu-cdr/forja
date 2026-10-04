@@ -145,49 +145,28 @@ input[type='date']::-webkit-calendar-picker-indicator {
 .smith {
   image-rendering: pixelated;
 }
-/* sem animação: só o quadro 0 */
-.smith .smith-f1,
-.smith .smith-f2,
-.smith .smith-f3 {
+/* sem animação: só o quadro 0 (martelo erguido) */
+.smith .smith-f1 {
   visibility: hidden;
 }
-/*
- * Martelada em 3,2 s: parado → respira → parado → ergue o martelo → impacto → parado.
- * Cada quadro tem sua própria janela de visibilidade.
- */
+/* martelada em 1,6 s: martelo erguido → bate na bigorna */
 .smith-anim .smith-f0 {
-  animation: smith-f0 3.2s steps(1) infinite;
+  animation: smith-a 1.6s steps(1) infinite;
 }
 .smith-anim .smith-f1 {
-  animation: smith-f1 3.2s steps(1) infinite;
+  animation: smith-b 1.6s steps(1) infinite;
 }
-.smith-anim .smith-f2 {
-  animation: smith-f2 3.2s steps(1) infinite;
+@keyframes smith-a {
+  0%, 72% { visibility: visible; }
+  73%, 100% { visibility: hidden; }
 }
-.smith-anim .smith-f3 {
-  animation: smith-f3 3.2s steps(1) infinite;
-}
-@keyframes smith-f0 {
-  0%, 29.9%, 46%, 57.9%, 86%, 100% { visibility: visible; }
-  30%, 45.9%, 58%, 85.9% { visibility: hidden; }
-}
-@keyframes smith-f1 {
-  0%, 29.9%, 46%, 100% { visibility: hidden; }
-  30%, 45.9% { visibility: visible; }
-}
-@keyframes smith-f2 {
-  0%, 57.9%, 72%, 100% { visibility: hidden; }
-  58%, 71.9% { visibility: visible; }
-}
-@keyframes smith-f3 {
-  0%, 71.9%, 86%, 100% { visibility: hidden; }
-  72%, 85.9% { visibility: visible; }
+@keyframes smith-b {
+  0%, 72% { visibility: hidden; }
+  73%, 100% { visibility: visible; }
 }
 @media (prefers-reduced-motion: reduce) {
   .smith-anim .smith-f0,
-  .smith-anim .smith-f1,
-  .smith-anim .smith-f2,
-  .smith-anim .smith-f3 {
+  .smith-anim .smith-f1 {
     animation: none;
   }
 }

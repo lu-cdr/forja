@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SMITH_H, SMITH_W, drawSmith, measureAnchors } from './smith'
+import { FICHA_H, FICHA_W, SMITH_H, SMITH_W, drawSmith, measureAnchors } from './smith'
 import { BASE, paletteFor } from './palette'
 
 const shapes = [
@@ -10,51 +10,50 @@ const shapes = [
 ]
 const count = (rows: string[], ch: string) => rows.join('').split(ch).length - 1
 
-describe('ferreiro desenhado à mão', () => {
-  it('todas as patentes e formas geram 64×88 só com cores da paleta', () => {
+describe('ferreiro', () => {
+  it('todas as patentes e formas geram o tamanho certo só com cores da paleta', () => {
     for (let t = 0; t <= 4; t++)
-      for (const shape of shapes)
-        for (const frame of [0, 1] as const) {
-          const s = drawSmith(t, shape, { frame })
-          expect(s.w).toBe(SMITH_W)
-          expect(s.h).toBe(SMITH_H)
-          expect(s.rows.every((r) => r.length === SMITH_W)).toBe(true)
-          const used = new Set(s.rows.join(''))
-          used.delete('.')
-          for (const ch of used) expect(BASE[ch], `caractere sem cor: ${ch}`).toBeDefined()
+      for (const shape of shapes) {
+        const sprites = [
+          drawSmith(t, shape, { frame: 0 }),
+          drawSmith(t, shape, { frame: 1 }),
+          drawSmith(t, shape, { hammer: false }),
+        ]
+        for (const [i, s] of sprites.entries()) {
+          const [w, h] = i < 2 ? [SMITH_W, SMITH_H] : [FICHA_W, FICHA_H]
+          expect(s.w).toBe(w)
+          expect(s.h).toBe(h)
+          expect(s.rows).toHaveLength(h)
+          expect(s.rows.every((r) => r.length === w)).toBe(true)
+          for (const ch of new Set(s.rows.join(''))) if (ch !== '.') expect(BASE[ch], `caractere sem cor: ${ch}`).toBeDefined()
         }
+      }
   })
 
-  it('respiração mexe só o tronco: pernas iguais nos dois quadros', () => {
-    const shape = shapes[0]
-    const a = drawSmith(3, shape, { frame: 0 })
-    const b = drawSmith(3, shape, { frame: 1 })
-    expect(a.rows).not.toEqual(b.rows)
-    expect(a.rows.slice(64)).toEqual(b.rows.slice(64))
-  })
-
-  it('martelada: erguer leva o martelo acima da cabeça; impacto solta faíscas e poeira', () => {
+  it('martelada: martelo no alto no quadro 0; no quadro 1 bate na bigorna e solta faíscas', () => {
     for (let t = 0; t <= 4; t++) {
-      const raise = drawSmith(t, shapes[0], { pose: 'raise' })
-      const top = raise.rows.slice(0, 22).join('')
-      expect(top.includes('W'), `cabo no alto na patente ${t}`).toBe(true)
-      expect(raise.rows.slice(78).join('').includes('W')).toBe(false) // martelo saiu do chão
-      const hit = drawSmith(t, shapes[0], { frame: 1, pose: 'impact' })
-      expect(count(hit.rows, 'F')).toBeGreaterThan(0)
-      expect(count(hit.rows, '1')).toBeGreaterThan(count(drawSmith(t, shapes[0], { frame: 1 }).rows, '1'))
-      for (const ch of new Set([...raise.rows.join(''), ...hit.rows.join('')])) if (ch !== '.') expect(BASE[ch]).toBeDefined()
+      const up = drawSmith(t, shapes[0], { frame: 0 })
+      const hit = drawSmith(t, shapes[0], { frame: 1 })
+      expect(up.rows.slice(0, 6).join('').includes('2'), `martelo no alto na patente ${t}`).toBe(true)
+      expect(hit.rows.slice(0, 6).join('').includes('2')).toBe(false)
+      expect(count(hit.rows, 'J') + count(hit.rows, 'R')).toBeGreaterThan(count(up.rows, 'J') + count(up.rows, 'R'))
     }
   })
 
-  it('ficha de medidas sem martelo; forja com martelo', () => {
-    expect(count(drawSmith(2, shapes[0], { hammer: false }).rows, 'W')).toBe(0)
-    expect(count(drawSmith(2, shapes[0]).rows, 'W')).toBeGreaterThan(0)
+  it('ficha de medidas sem martelo nem bigorna; forja com os dois', () => {
+    const ficha = drawSmith(2, shapes[0], { hammer: false }).rows
+    expect(count(ficha, 'W') + count(ficha, '6')).toBe(0)
+    const forja = drawSmith(2, shapes[0]).rows
+    expect(count(forja, 'W')).toBeGreaterThan(0)
+    expect(count(forja, '6')).toBeGreaterThan(0)
   })
 
-  it('careca não tem cabelo; orc tem presas; sem barba tem bem menos pelo', () => {
+  it('careca não tem cabelo; orc tem presas; sem barba não tem barba', () => {
     expect(count(drawSmith(3, shapes[1]).rows, 'i')).toBe(0)
+    expect(count(drawSmith(3, shapes[0]).rows, 'i')).toBeGreaterThan(0)
     expect(count(drawSmith(3, shapes[3]).rows, 'T')).toBe(2)
-    expect(count(drawSmith(3, shapes[2]).rows, 'c')).toBeLessThan(count(drawSmith(3, shapes[0]).rows, 'c') / 4)
+    expect(count(drawSmith(3, shapes[2]).rows, 'b')).toBe(0)
+    expect(count(drawSmith(3, shapes[0]).rows, 'b')).toBeGreaterThan(0)
   })
 
   it('pontos das medidas caem sobre o corpo em todas as patentes', () => {
@@ -62,7 +61,7 @@ describe('ferreiro desenhado à mão', () => {
       const s = drawSmith(t, shapes[0], { hammer: false })
       for (const [field, p] of Object.entries(measureAnchors(t))) {
         const ch = s.rows[Math.round(p.y)][Math.round(p.x)]
-        expect(ch !== '.' && ch !== 's', `${field} fora do corpo na patente ${t}`).toBe(true)
+        expect(ch !== '.' && ch !== 'o', `${field} fora do corpo na patente ${t}`).toBe(true)
       }
     }
   })

@@ -58,9 +58,18 @@ export const BASE: Palette = {
   // presas do orc
   T: '#f4eedb',
   U: '#c7bc9d',
-  // sombra no chão e poeira da martelada
-  s: '#00000055',
-  F: '#cbb89bb3',
+  // bigorna
+  '5': '#7b828c',
+  '6': '#4a4f57',
+  '7': '#30343a',
+  // metal em brasa e faíscas
+  H: '#ff7a2f',
+  I: '#ffd36b',
+  J: '#ffe28a',
+  // chão de pedra
+  '8': '#2b2622',
+  '9': '#1f1b18',
+  V: '#36302b',
 }
 
 /** Rampas trocáveis (troca de paleta): pele A–E, cabelo h i j, barba b c d. */

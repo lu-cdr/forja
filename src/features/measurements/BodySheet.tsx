@@ -1,20 +1,20 @@
 import { useMemo } from 'react'
 import { Smith } from '../../components/Smith'
-import { SMITH_W, measureAnchors } from '../../components/sprites/art/smith'
+import { FICHA_H, FICHA_W, measureAnchors } from '../../components/sprites/art/smith'
 import { cx } from '../../components/ui'
 import { fmt } from '../../domain/calc'
 import { MEASUREMENT_LABEL, type MeasurementField } from '../../domain/types'
 
 /**
  * Ficha do personagem: o ferreiro de pé com as circunferências em volta, cada uma ligada por uma
- * linha ao ponto do corpo. Coordenadas em "unidades": a largura da ficha vale 100; o sprite (64×88 px)
- * fica em x 18–82, com 1 px do sprite = 1 unidade, e as caixas nas laterais (0–23 e 77–100).
+ * linha ao ponto do corpo. Coordenadas em "unidades": a largura da ficha vale 100; o sprite
+ * (FICHA_W×FICHA_H px, FIG_S unidades por px) fica centrado, e as caixas nas laterais (0–23 e 77–100).
  */
-const FIG_S = 1
-const FIG_X = 18
-const FIG_Y = 1
-/** Altura ÷ largura da ficha (o sprite tem 88 de altura + margem). */
+/** Altura ÷ largura da ficha. */
 const ASPECT = 0.92
+const FIG_S = 1.6 // a lenda (corpo mais largo) cabe entre as caixas
+const FIG_X = (100 - FICHA_W * FIG_S) / 2
+const FIG_Y = (100 * ASPECT - FICHA_H * FIG_S) / 2
 /** x em % da largura; y (em unidades de largura) convertido para % da altura. */
 const X = (u: number) => u
 const Y = (u: number) => u / ASPECT
@@ -51,7 +51,7 @@ export function BodySheet(props: Props) {
 
   return (
     <div className="relative mx-auto w-full max-w-md" style={{ aspectRatio: `1 / ${ASPECT}` }}>
-      <div className="absolute" style={{ left: `${X(FIG_X)}%`, top: `${Y(FIG_Y)}%`, width: `${SMITH_W * FIG_S}%` }}>
+      <div className="absolute" style={{ left: `${X(FIG_X)}%`, top: `${Y(FIG_Y)}%`, width: `${FICHA_W * FIG_S}%` }}>
         <Smith tier={props.tier} stance="ficha" size={1000} className="h-auto w-full" label="Ferreiro com as medidas" />
       </div>
 
