@@ -68,6 +68,8 @@ export interface DrawOptions {
   frame?: 0 | 1
   /** com o martelo na mão (falso na ficha de medidas) */
   hammer?: boolean
+  /** martelada: "raise" ergue o martelo acima da cabeça; "impact" bate no chão com faíscas */
+  pose?: 'idle' | 'raise' | 'impact'
 }
 
 export function drawSmith(tier: number, shape: SmithShape, opts: DrawOptions = {}): PixelSprite {
@@ -95,8 +97,9 @@ export function drawSmith(tier: number, shape: SmithShape, opts: DrawOptions = {
     b.h1(80, 4, 59, 'Z')
   }
 
+  const raise = opts.pose === 'raise' && opts.hammer !== false
   // ---------- martelo (cabeça no chão, cabo até a mão direita) ----------
-  if (opts.hammer !== false) {
+  if (opts.hammer !== false && !raise) {
     // o cabo acompanha a mão direita (braços mais finos ficam mais perto do corpo)
     const hx = 53 - s
     for (let y = 63; y <= 78; y++) {
@@ -238,8 +241,6 @@ export function drawSmith(tier: number, shape: SmithShape, opts: DrawOptions = {
     const delt = S(armSh(DELT))
     rows(24, delt, skinTop)
     const upper = S(armSh(UPPER))
-    rows(35, upper, 'C')
-    if (T === 0) rows(35, upper.slice(0, 3), 'v')
     // luz do lado esquerdo de cada parte, sombra no direito (luz vem da esquerda)
     const shade = (y0: number, list: Span[], hiW: number, shW: number, lit: string, dark: string) =>
       list.forEach(([a, z], i) => {
@@ -256,6 +257,25 @@ export function drawSmith(tier: number, shape: SmithShape, opts: DrawOptions = {
       dots('D', [[10, 34], [11, 34], [12, 34], [13, 34], [14, 34], [15, 34], [16, 34]])
       dots('D', [[12, 28], [13, 29], [13, 30]])
     }
+    // ombreira (mestre: couro; lenda: aço com friso de ouro)
+    const shoulderPad = () => {
+      if (T < 3) return
+      const [a, z] = delt[3]
+      const pad: Span[] = [[a + 2, z - 2], [a, z], [a - 1, z + 1], [a - 1, z + 1], [a, z]]
+      const m = T >= 4 ? ['2', '3', '4', 'o'] : ['L', 'M', 'N', 'O']
+      rows(23, pad, m[1])
+      shade(23, pad, 3, 2, m[0], m[2])
+      b.h1(27, pad[4][0], pad[4][1], T >= 4 ? 'G' : m[3])
+      b.dots(m[3], [[Math.round((a + z) / 2), 25]])
+    }
+    if (side === 'R' && raise) {
+      raisedArm(shade)
+      shoulderPad()
+      return
+    }
+    // (a parte do braço abaixo do ombro, pendurada)
+    rows(35, upper, 'C')
+    if (T === 0) rows(35, upper.slice(0, 3), 'v')
     shade(T === 0 ? 38 : 36, upper.slice(T === 0 ? 3 : 1, 9), T === 0 ? 2 : 4, 2, 'B', 'D')
     if (T >= 1) {
       dots('A', [[8, 37], [9, 37], [8, 38], [9, 38], [8, 39], [9, 39]])
@@ -286,17 +306,65 @@ export function drawSmith(tier: number, shape: SmithShape, opts: DrawOptions = {
     const fx = fist[3][0]
     b.dots('D', [[fx + 2, 62], [fx + 4, 62], [fx + 6, 62], [fx + 2, 63], [fx + 4, 63], [fx + 6, 63]])
     paint(64, fist.slice(5), 'D')
-    // ombreira (mestre: couro; lenda: aço com friso de ouro)
-    if (T >= 3) {
-      const [a, z] = delt[3]
-      const pad: Span[] = [[a + 2, z - 2], [a, z], [a - 1, z + 1], [a - 1, z + 1], [a, z]]
-      const m = T >= 4 ? ['2', '3', '4', 'o'] : ['L', 'M', 'N', 'O']
-      rows(23, pad, m[1])
-      shade(23, pad, 3, 2, m[0], m[2])
-      b.h1(27, pad[4][0], pad[4][1], T >= 4 ? 'G' : m[3])
-      b.dots(m[3], [[Math.round((a + z) / 2), 25]])
-    }
+    shoulderPad()
   }
+
+  /**
+   * Braço direito erguido com o martelo acima da cabeça (preparando a martelada):
+   * braço sai do ombro para a direita, cotovelo dobrado, antebraço e punho para cima.
+   */
+  const raisedArm = (shade: (y0: number, list: Span[], hiW: number, shW: number, lit: string, dark: string) => void) => {
+    const A = (list: Span[]): Span[] => list.map(([a, z]) => [a - s, z - s - t])
+    const upperR = A([[52, 57], [50, 59], [49, 60], [48, 60], [48, 60], [48, 59], [49, 58], [50, 57]]) // y26..33
+    const foreR = A([[55, 60], [55, 61], [55, 61], [56, 61], [56, 61], [56, 61], [55, 61]]) // y19..25
+    const fistR = A([[55, 60], [54, 61], [54, 61], [54, 61], [54, 61], [55, 61], [55, 60]]) // y12..18
+    // martelo: cabo vertical acima do punho, cabeça no alto
+    const hx = Math.round((fistR[3][0] + fistR[3][1]) / 2)
+    for (let y = 5; y <= 20; y++) {
+      b.set(hx - 1, y, 'W')
+      b.set(hx, y, 'X')
+    }
+    const half = Math.floor(hw / 2)
+    const z = Math.min(63, hx + half)
+    const a = z - hw
+    const head: Span[] = [[a + 1, z - 1], [a, z], [a, z], [a, z], [a, z], [a + 1, z - 1]] // y0..5
+    rows(0, head, '3')
+    paint(0, [[a + 1, z - 1], [a, z]], '2')
+    paint(0, [[a + 3, a + 7]], '1')
+    for (let y = 1; y <= 4; y++) {
+      b.set(a, y, '2')
+      b.set(z, y, '4')
+    }
+    paint(4, [[a, z], [a + 1, z - 1]], '4')
+    if (T >= 3) for (const x of [a + 3, z - 3]) for (let y = 0; y <= 5; y++) if (b.get(x, y) !== '.') b.set(x, y, y <= 1 ? 'G' : 'g')
+    if (T >= 4) b.dots('R', [[a + 6, 3], [a + 8, 2], [a + 10, 3]])
+    // braço (bíceps contraído em cima), antebraço e punho
+    rows(26, upperR, 'C')
+    upperR.forEach(([ua, uz], i) => {
+      if (i <= 1) for (let x = ua + 1; x < uz; x++) b.set(x, 26 + i, i === 0 ? 'A' : 'B')
+      if (i >= 6) for (let x = ua; x <= uz; x++) b.set(x, 26 + i, 'D')
+      b.set(uz, 26 + i, 'D')
+    })
+    b.dots('A', [[53 - s, 27], [54 - s, 27], [52 - s, 28]])
+    rows(19, foreR, 'C')
+    shade(19, foreR, 2, 1, 'B', 'D')
+    b.h1(25, foreR[6][0], foreR[6][1], 'D') // dobra do cotovelo
+    // braçadeira (patente 2+) ou munhequeira, logo abaixo do punho
+    const band = T >= 2 ? foreR.slice(0, 4) : foreR.slice(0, 2)
+    const mat = T >= 4 ? ['2', '3', '4', 'o'] : ['L', 'M', 'N', 'O']
+    rows(19, band, mat[1])
+    shade(19, band, 2, 1, mat[0], mat[2])
+    b.h1(19 + band.length - 1, band[band.length - 1][0], band[band.length - 1][1], mat[3])
+    if (T >= 4) b.h1(20, band[1][0], band[1][1], 'G')
+    rows(12, fistR, 'C')
+    shade(12, fistR.slice(0, 2), 4, 0, 'B', 'D')
+    const fx = fistR[3][0]
+    b.dots('D', [[fx + 1, 15], [fx + 3, 15], [fx + 5, 15], [fx + 1, 16], [fx + 3, 16], [fx + 5, 16]])
+    paint(17, fistR.slice(5), 'D')
+    // separação entre o braço e o ombro
+    b.h1(34, upperR[7][0], upperR[7][1], 'E')
+  }
+
   arm('L')
   arm('R')
   if (T >= 1) {
@@ -313,6 +381,31 @@ export function drawSmith(tier: number, shape: SmithShape, opts: DrawOptions = {
   }
 
   b.outline('o', 's')
+
+  // ---------- impacto da martelada: faíscas e poeira (sem contorno) ----------
+  if (opts.pose === 'impact' && opts.hammer !== false) {
+    const hx = 53 - s
+    const sparks: [number, number, string][] = [
+      [-10, 78, 'G'], [-12, 76, '1'], [-9, 75, 'G'], [-14, 79, 'G'], [-7, 73, '1'],
+      [7, 76, 'G'], [9, 74, '1'], [6, 73, 'G'], [8, 77, 'G'], [4, 71, '1'],
+      [-4, 75, 'G'], [4, 74, 'G'], [0, 73, '1'],
+    ]
+    const put = (x: number, y: number, ch: string) => {
+      if (x >= 0 && x < SMITH_W && y >= 0 && y < SMITH_H && (b.get(x, y) === '.' || b.get(x, y) === 's')) b.set(x, y, ch)
+    }
+    // faíscas: riscos de 2 px saindo do ponto de impacto
+    for (const [dx, y, ch] of sparks.slice(0, 7 + T * 2)) {
+      const c = T >= 4 && dx > 0 && ch === 'G' ? 'R' : ch
+      put(hx + dx, y, c)
+      put(hx + dx - Math.sign(dx), y + 1, c)
+    }
+    // clarão no ponto do impacto
+    for (const [dx, y] of [[-9, 81], [-10, 82], [-9, 83], [9, 81], [10, 82], [9, 83]] as [number, number][]) put(hx + dx, y, '1')
+    // nuvem de poeira dos dois lados da cabeça do martelo
+    for (const side of [-1, 1])
+      for (const [dx, y] of [[11, 85], [12, 85], [13, 85], [14, 85], [12, 84], [13, 84], [14, 84], [15, 84], [13, 83], [14, 83], [15, 82], [16, 83]] as [number, number][])
+        put(hx + side * dx, y, 'F')
+  }
   return b.toSprite()
 }
 

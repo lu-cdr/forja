@@ -35,10 +35,14 @@ export const Smith = memo(function Smith({
     () => {
       const shape = { bald: l.hair === BALD, beardless: l.beard === NO_BEARD, orc: l.skin === 'orc' }
       const pal = paletteFor(l)
-      const hammer = stance === 'forja'
-      const f0 = drawSmith(tier, shape, { frame: 0, hammer })
-      const f1 = stance === 'forja' ? drawSmith(tier, shape, { frame: 1, hammer }) : f0
-      return [toRuns(f0, pal), toRuns(f1, pal)]
+      if (stance !== 'forja') return [toRuns(drawSmith(tier, shape, { hammer: false }), pal)]
+      // quadros: 0 parado · 1 respira · 2 ergue o martelo · 3 impacto (ordem da animação no CSS)
+      return [
+        drawSmith(tier, shape, { frame: 0 }),
+        drawSmith(tier, shape, { frame: 1 }),
+        drawSmith(tier, shape, { frame: 0, pose: 'raise' }),
+        drawSmith(tier, shape, { frame: 1, pose: 'impact' }),
+      ].map((f) => toRuns(f, pal))
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tier, l.skin, l.hair, l.beard, stance],

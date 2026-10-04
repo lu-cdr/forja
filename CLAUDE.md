@@ -81,7 +81,8 @@ Dias removidos do plano são arquivados (`archived`), nunca apagados, para o his
   treino recalcula tudo e o backup continua sendo só dados brutos. Mudar as regras reajusta o nível de todo mundo.
 - Mascote: ferreiro em pixel art DESENHADO À MÃO (64×88, estilo arcade 3/4) em `src/components/sprites/art/smith.ts`:
   cada parte do corpo é descrita linha a linha (trechos x0–x1) e os detalhes pixel a pixel, com `Board` (`art/canvas.ts`).
-  Patente 0–4 afina/alarga o corpo e troca equipamento; `frame` 1 = respiração; `hammer: false` na ficha de medidas.
+  Patente 0–4 afina/alarga o corpo e troca equipamento; `frame` 1 = respiração; `pose` `raise`/`impact` = martelada (4 quadros animados por CSS em `index.css`);
+  `hammer: false` na ficha de medidas.
   Personalização por troca de paleta (`art/palette.ts`); careca/sem barba/orc mudam o desenho. `measureAnchors` dá os
   pontos do corpo da ficha de medidas (há teste garantindo que caem sobre o corpo). Não voltar a gerar formas por shader.
 - Laboratório de sprites (só em dev): `#/lab/sprites`.

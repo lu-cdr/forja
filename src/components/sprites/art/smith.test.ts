@@ -33,6 +33,19 @@ describe('ferreiro desenhado à mão', () => {
     expect(a.rows.slice(64)).toEqual(b.rows.slice(64))
   })
 
+  it('martelada: erguer leva o martelo acima da cabeça; impacto solta faíscas e poeira', () => {
+    for (let t = 0; t <= 4; t++) {
+      const raise = drawSmith(t, shapes[0], { pose: 'raise' })
+      const top = raise.rows.slice(0, 22).join('')
+      expect(top.includes('W'), `cabo no alto na patente ${t}`).toBe(true)
+      expect(raise.rows.slice(78).join('').includes('W')).toBe(false) // martelo saiu do chão
+      const hit = drawSmith(t, shapes[0], { frame: 1, pose: 'impact' })
+      expect(count(hit.rows, 'F')).toBeGreaterThan(0)
+      expect(count(hit.rows, '1')).toBeGreaterThan(count(drawSmith(t, shapes[0], { frame: 1 }).rows, '1'))
+      for (const ch of new Set([...raise.rows.join(''), ...hit.rows.join('')])) if (ch !== '.') expect(BASE[ch]).toBeDefined()
+    }
+  })
+
   it('ficha de medidas sem martelo; forja com martelo', () => {
     expect(count(drawSmith(2, shapes[0], { hammer: false }).rows, 'W')).toBe(0)
     expect(count(drawSmith(2, shapes[0]).rows, 'W')).toBeGreaterThan(0)
