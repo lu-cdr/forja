@@ -1,0 +1,10 @@
+node_modules
+dist
+dev-dist
+*.local
+
+# dados pessoais: a planilha fica só no PC do dono (npm run seed lê dela localmente)
+Treino_Hipertrofia.xlsx
+
+# ferramentas locais
+.claude/
