@@ -3,7 +3,7 @@ import { Smith } from '../../components/Smith'
 import { AttributeRow, LevelBadge, PixelIcon, XpBar } from '../../components/game'
 import { Button, Icon, PageHeader, Section, Sheet, Stat, cx } from '../../components/ui'
 import { SmithCustomizer } from '../../components/SmithCustomizer'
-import { DEFAULT_LOOK } from '../../components/sprites/materials'
+import { DEFAULT_LOOK } from '../../components/sprites/art/palette'
 import { updateProfile } from '../../db/repo'
 import { useState } from 'react'
 import { useGame, useProfile } from '../../db/hooks'
@@ -47,7 +47,7 @@ export function CharacterPage() {
       <Section className="mb-6">
         <div className="frame forge-bg overflow-hidden rounded-2xl">
           <div className="flex justify-center px-2 pt-4">
-            <Smith tier={game.rank.tier} size={300} label={`Ferreiro, patente ${game.rank.title}`} />
+            <Smith tier={game.rank.tier} size={224} label={`Ferreiro, patente ${game.rank.title}`} />
           </div>
           <div className="border-t-2 border-iron-700 bg-iron-900/80 p-4">
             <div className="flex items-center gap-3">
@@ -100,7 +100,7 @@ export function CharacterPage() {
                 )}
               >
                 <div className={cx('flex justify-center', !reached && 'locked-silhouette')}>
-                  <Smith tier={r.tier} size={96} animate={false} label={r.title} />
+                  <Smith tier={r.tier} size={72} animate={false} label={r.title} />
                 </div>
                 <p className={cx('num mt-1 text-[15px] leading-tight', reached ? 'text-chalk' : 'text-iron-500')}>{r.title}</p>
                 <p className="text-[11px] text-iron-400">Nível {r.minLevel}</p>

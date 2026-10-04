@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SmithLook } from '../domain/types'
 import { Smith } from './Smith'
-import { BALD, HAIR_OPTIONS, NO_BEARD, SKIN_OPTIONS } from './sprites/materials'
+import { BALD, HAIR_OPTIONS, NO_BEARD, SKIN_OPTIONS } from './sprites/art/palette'
 import { Icon, Segmented, cx } from './ui'
 
 type Swatch = { id: string; label: string; color?: string }
@@ -57,7 +57,7 @@ export function SmithCustomizer({ value: initial, onChange }: { value: SmithLook
   return (
     <div>
       <div className="frame forge-bg flex justify-center rounded-2xl pt-3">
-        <Smith tier={Number(previewTier)} size={220} look={value} label="Prévia do ferreiro" />
+        <Smith tier={Number(previewTier)} size={164} look={value} label="Prévia do ferreiro" />
       </div>
       <div className="mt-2">
         <Segmented<'0' | '3'>

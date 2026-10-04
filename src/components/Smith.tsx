@@ -1,13 +1,16 @@
 import { memo, useMemo } from 'react'
 import type { SmithLook } from '../domain/types'
 import { useProfile } from '../db/hooks'
-import { CHIBI, drawHero, type Stance } from './sprites/hero'
-import { DEFAULT_LOOK } from './sprites/materials'
+import { toRuns } from './sprites/pixelart'
+import { SMITH_H, SMITH_W, drawSmith } from './sprites/art/smith'
+import { BALD, DEFAULT_LOOK, NO_BEARD, paletteFor } from './sprites/art/palette'
+
+export type Stance = 'forja' | 'ficha'
 
 /**
- * Mascote: o ferreiro em pixel art 16 bits (estilo chibi), conforme a patente (0–4).
+ * Mascote: o ferreiro em pixel art desenhado à mão, conforme a patente (0–4).
  * Usa a aparência salva no perfil; `look` sobrepõe (prévia da personalização, boas-vindas).
- * Postura "forja" anima martelo e bigorna; "ficha" fica de pé, de braços abertos (tela de medidas).
+ * Postura "forja": martelo na mão, respirando. "ficha": sem martelo, parado (tela de medidas).
  */
 export const Smith = memo(function Smith({
   tier,
@@ -30,24 +33,28 @@ export const Smith = memo(function Smith({
   const l = look ?? profile?.smith ?? DEFAULT_LOOK
   const frames = useMemo(
     () => {
-      const f0 = drawHero(CHIBI, tier, 0, l, stance)
-      const f1 = stance === 'forja' ? drawHero(CHIBI, tier, 1, l, stance) : f0
-      return { w: f0.w, h: f0.h, runs: [f0.toRuns(), f1.toRuns()] }
+      const shape = { bald: l.hair === BALD, beardless: l.beard === NO_BEARD, orc: l.skin === 'orc' }
+      const pal = paletteFor(l)
+      const hammer = stance === 'forja'
+      const f0 = drawSmith(tier, shape, { frame: 0, hammer })
+      const f1 = stance === 'forja' ? drawSmith(tier, shape, { frame: 1, hammer }) : f0
+      return [toRuns(f0, pal), toRuns(f1, pal)]
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tier, l.skin, l.hair, l.beard, stance],
   )
+  const moving = animate && stance === 'forja'
   return (
     <svg
-      viewBox={`0 0 ${frames.w} ${frames.h}`}
+      viewBox={`0 0 ${SMITH_W} ${SMITH_H}`}
       width={size}
-      height={(size * frames.h) / frames.w}
+      height={(size * SMITH_H) / SMITH_W}
       shapeRendering="crispEdges"
-      className={`smith ${animate && stance === 'forja' ? 'smith-anim' : ''} ${className ?? ''}`}
+      className={`smith ${moving ? 'smith-anim' : ''} ${className ?? ''}`}
       role="img"
       aria-label={label ?? 'Ferreiro'}
     >
-      {frames.runs.map((runs, i) => (
+      {frames.map((runs, i) => (
         <g key={i} className={`smith-f${i}`}>
           {runs.map((r) => (
             <rect key={`${r.x}-${r.y}`} x={r.x} y={r.y} width={r.w} height={1} fill={r.c} />

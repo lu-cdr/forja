@@ -89,7 +89,7 @@ export function RewardPage() {
 
       <div className="frame forge-bg relative mt-5 overflow-hidden rounded-2xl">
         <div className="flex justify-center pt-3">
-          <Smith key={tier} tier={tier} size={240} className={evolved ? 'anim-level-pop' : undefined} />
+          <Smith key={tier} tier={tier} size={180} className={evolved ? 'anim-level-pop' : undefined} />
         </div>
         {levelUp && (
           <div className="anim-level-pop absolute inset-x-0 top-3 text-center">

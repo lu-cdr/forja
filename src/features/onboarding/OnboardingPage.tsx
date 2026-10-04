@@ -4,7 +4,7 @@ import { InstallGuide } from '../../components/InstallGuide'
 import { Smith } from '../../components/Smith'
 import { SmithCustomizer } from '../../components/SmithCustomizer'
 import { TemplateList } from '../../components/TemplateList'
-import { DEFAULT_LOOK } from '../../components/sprites/materials'
+import { DEFAULT_LOOK } from '../../components/sprites/art/palette'
 import { Button, Icon, cx } from '../../components/ui'
 import { importAll, parseBackup } from '../../db/backup'
 import { setupNewUser } from '../../db/repo'
@@ -87,7 +87,7 @@ export function OnboardingPage() {
       {step === 0 && (
         <div className="flex flex-1 flex-col pt-8">
           <div className="frame forge-bg flex justify-center rounded-2xl pt-4">
-            <Smith tier={0} size={240} label="Ferreiro aprendiz" look={DEFAULT_LOOK} />
+            <Smith tier={0} size={176} label="Ferreiro aprendiz" look={DEFAULT_LOOK} />
           </div>
           <h1 className="mt-6 font-display text-4xl leading-none font-bold">Bem-vindo à Forja</h1>
           <ul className="mt-4 space-y-3 text-[15px] text-iron-300">

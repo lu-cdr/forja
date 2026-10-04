@@ -83,7 +83,7 @@ export function TodayPage() {
         <Section className="mb-5">
           <Link to="/forja" className="frame forge-bg flex items-end gap-3 overflow-hidden rounded-2xl pr-4 active:brightness-110">
             <div className="-mb-1 shrink-0">
-              <Smith tier={gameData.game.rank.tier} size={110} />
+              <Smith tier={gameData.game.rank.tier} size={84} />
             </div>
             <div className="min-w-0 flex-1 py-3">
               <div className="flex items-center gap-2">

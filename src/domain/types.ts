@@ -56,7 +56,7 @@ export interface Profile {
 export type TrainingLevel = 'iniciante' | 'intermediario' | 'avancado'
 export type ActivityLevel = 'sedentario' | 'pouco-ativo' | 'ativo' | 'muito-ativo'
 
-/** Ids de predefinições (ver src/components/sprites/materials.ts). Ids desconhecidos caem no padrão. */
+/** Ids de predefinições (ver src/components/sprites/art/palette.ts). Ids desconhecidos caem no padrão. */
 export interface SmithLook {
   skin: string
   hair: string

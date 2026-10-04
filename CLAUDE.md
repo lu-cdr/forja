@@ -79,8 +79,10 @@ Dias removidos do plano são arquivados (`archived`), nunca apagados, para o his
 - Regras em `src/domain/game.ts` (XP, curva de níveis, patentes, conquistas, atributos, missões), com testes.
 - **XP é sempre derivado do histórico** (treinos, séries, medidas). Não persistir XP/nível no banco: assim apagar/editar
   treino recalcula tudo e o backup continua sendo só dados brutos. Mudar as regras reajusta o nível de todo mundo.
-- Mascote: ferreiro 16 bits (chibi) gerado por código: motor de formas iluminadas em `src/components/sprites/engine.ts`,
-  corpo em `hero.ts` (patente 0–4 engrossa o corpo; posturas `forja` animada e `ficha` para medidas), cores e opções de
-  personalização em `materials.ts`. `measureAnchors` dá os pontos do corpo usados pela ficha de medidas.
+- Mascote: ferreiro em pixel art DESENHADO À MÃO (64×88, estilo arcade 3/4) em `src/components/sprites/art/smith.ts`:
+  cada parte do corpo é descrita linha a linha (trechos x0–x1) e os detalhes pixel a pixel, com `Board` (`art/canvas.ts`).
+  Patente 0–4 afina/alarga o corpo e troca equipamento; `frame` 1 = respiração; `hammer: false` na ficha de medidas.
+  Personalização por troca de paleta (`art/palette.ts`); careca/sem barba/orc mudam o desenho. `measureAnchors` dá os
+  pontos do corpo da ficha de medidas (há teste garantindo que caem sobre o corpo). Não voltar a gerar formas por shader.
 - Laboratório de sprites (só em dev): `#/lab/sprites`.
 - Visual: fonte Pixelify Sans (títulos/números), paleta de forja em `src/index.css`, classes `.frame`/`.frame-gold`.

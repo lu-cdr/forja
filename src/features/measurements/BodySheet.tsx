@@ -1,20 +1,20 @@
 import { useMemo } from 'react'
 import { Smith } from '../../components/Smith'
-import { CHIBI, measureAnchors } from '../../components/sprites/hero'
+import { SMITH_W, measureAnchors } from '../../components/sprites/art/smith'
 import { cx } from '../../components/ui'
 import { fmt } from '../../domain/calc'
 import { MEASUREMENT_LABEL, type MeasurementField } from '../../domain/types'
 
 /**
  * Ficha do personagem: o ferreiro de pé com as circunferências em volta, cada uma ligada por uma
- * linha ao ponto do corpo. Coordenadas em "unidades" de um quadrado 100×100: o sprite (64×66 px)
- * é ampliado 1,25× (o personagem ocupa só o centro do sprite), ficando em x 10–90 e y 0–82.
+ * linha ao ponto do corpo. Coordenadas em "unidades": a largura da ficha vale 100; o sprite (64×88 px)
+ * fica em x 18–82, com 1 px do sprite = 1 unidade, e as caixas nas laterais (0–23 e 77–100).
  */
-const FIG_S = 1.25
-const FIG_X = 10
-const FIG_Y = 4
-/** Altura ÷ largura da ficha: mais alta que larga, para caber 5 caixas por coluna. */
-const ASPECT = 1.22
+const FIG_S = 1
+const FIG_X = 18
+const FIG_Y = 1
+/** Altura ÷ largura da ficha (o sprite tem 88 de altura + margem). */
+const ASPECT = 0.92
 /** x em % da largura; y (em unidades de largura) convertido para % da altura. */
 const X = (u: number) => u
 const Y = (u: number) => u / ASPECT
@@ -22,10 +22,10 @@ const Y = (u: number) => u / ASPECT
 // colunas ordenadas de cima para baixo, para as linhas não se cruzarem
 const LEFT: MeasurementField[] = ['chestCm', 'armRCm', 'waistCm', 'thighRCm']
 const RIGHT: MeasurementField[] = ['armLCm', 'abdomenCm', 'hipCm', 'thighLCm', 'calfCm']
-const BOX_W = 25
+const BOX_W = 23
 
 // linhas das caixas, em % da altura (abaixo da cabeça, até os pés)
-const rows = (n: number) => Array.from({ length: n }, (_, i) => 30 + (i * 62) / Math.max(1, n - 1))
+const rows = (n: number) => Array.from({ length: n }, (_, i) => 26 + (i * 64) / Math.max(1, n - 1))
 
 type Props = { tier: number } & (
   | {
@@ -43,7 +43,7 @@ type Props = { tier: number } & (
 )
 
 export function BodySheet(props: Props) {
-  const anchors = useMemo(() => measureAnchors(CHIBI, props.tier), [props.tier])
+  const anchors = useMemo(() => measureAnchors(props.tier), [props.tier])
   const placed = [
     ...LEFT.map((f, i) => ({ f, side: 'left' as const, y: rows(LEFT.length)[i] })),
     ...RIGHT.map((f, i) => ({ f, side: 'right' as const, y: rows(RIGHT.length)[i] })),
@@ -51,7 +51,7 @@ export function BodySheet(props: Props) {
 
   return (
     <div className="relative mx-auto w-full max-w-md" style={{ aspectRatio: `1 / ${ASPECT}` }}>
-      <div className="absolute" style={{ left: `${X(FIG_X)}%`, top: `${Y(FIG_Y)}%`, width: `${64 * FIG_S}%` }}>
+      <div className="absolute" style={{ left: `${X(FIG_X)}%`, top: `${Y(FIG_Y)}%`, width: `${SMITH_W * FIG_S}%` }}>
         <Smith tier={props.tier} stance="ficha" size={1000} className="h-auto w-full" label="Ferreiro com as medidas" />
       </div>
 
