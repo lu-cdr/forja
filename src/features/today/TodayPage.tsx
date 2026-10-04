@@ -31,7 +31,7 @@ export function TodayPage() {
   const items = usePlanItems(selected?.id)
 
   const week = profile ? planWeek(profile.planStartDate, today) : 1
-  const phase = planPhase(week)
+  const phase = planPhase(week, profile?.rampUpWeeks)
 
   const weekStart = startOfWeek(today)
   const weekDays = useMemo(() => {

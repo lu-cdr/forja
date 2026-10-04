@@ -22,9 +22,9 @@ export function planWeek(planStartDate: string, today: string): number {
   return d < 0 ? 1 : Math.floor(d / 7) + 1
 }
 
-/** Fase 1 = readaptação (semanas 1–3); fase 2 = semana 4 em diante. */
-export function planPhase(week: number): 1 | 2 {
-  return week <= 3 ? 1 : 2
+/** Fase 1 = readaptação (as primeiras rampUpWeeks semanas; padrão 3); fase 2 = depois. */
+export function planPhase(week: number, rampUpWeeks = 3): 1 | 2 {
+  return week <= rampUpWeeks ? 1 : 2
 }
 
 /** Segunda-feira da semana de uma data (YYYY-MM-DD). */

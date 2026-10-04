@@ -45,7 +45,7 @@ export function WorkoutPage() {
     }
   }, [])
 
-  const phase = profile ? planPhase(planWeek(profile.planStartDate, toISODate())) : 1
+  const phase = profile ? planPhase(planWeek(profile.planStartDate, toISODate()), profile.rampUpWeeks) : 1
   const planned = useMemo(
     () => (items ?? []).reduce((a, i) => a + (phase === 1 ? i.setsPhase1 : i.setsPhase2), 0),
     [items, phase],

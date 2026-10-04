@@ -1,7 +1,7 @@
 import { CATALOG, DEFAULT_TEMPLATE_ID, SEED_VERSION, getTemplate } from '../seed/plan'
 import { toISODate } from '../domain/dates'
 import { planSnapshot } from '../domain/plan'
-import type { BodyMeasurement, PlanExercise, Profile, SetLog, WorkoutSession } from '../domain/types'
+import type { ActivityLevel, BodyMeasurement, PlanExercise, Profile, SetLog, SmithLook, TrainingLevel, WorkoutSession } from '../domain/types'
 import { db as defaultDb, newId, type FitDB } from './db'
 
 /** Permite injetar outro banco nos testes. */
@@ -61,9 +61,15 @@ export async function applyTemplate(templateId: string): Promise<void> {
 
 export interface NewUserInput {
   templateId: string
-  planStartDate: string
+  /** Padrão: hoje (o plano começa no cadastro). */
+  planStartDate?: string
   heightCm?: number
   weightKg?: number
+  birthYear?: number
+  trainingLevel?: TrainingLevel
+  activityLevel?: ActivityLevel
+  rampUpWeeks?: number
+  smith?: SmithLook
 }
 
 /** Primeira abertura: cria perfil, plano do modelo escolhido e a primeira pesagem. */
@@ -71,9 +77,14 @@ export async function setupNewUser(input: NewUserInput): Promise<void> {
   await db.transaction('rw', [db.profile, db.exercises, db.planDays, db.planExercises, db.measurements], async () => {
     await db.profile.put({
       id: 'me',
-      planStartDate: input.planStartDate,
+      planStartDate: input.planStartDate ?? toISODate(),
       heightCm: input.heightCm,
       startWeightKg: input.weightKg,
+      birthYear: input.birthYear,
+      trainingLevel: input.trainingLevel,
+      activityLevel: input.activityLevel,
+      rampUpWeeks: input.rampUpWeeks,
+      smith: input.smith,
       onboardedAt: new Date().toISOString(),
     })
     await applyTemplateInTx(input.templateId)
@@ -150,7 +161,7 @@ export async function startSession(planDayId: string, now = new Date()): Promise
     planDayId,
     date,
     startedAt: now.toISOString(),
-    ...planSnapshot({ planDayId, date }, plan, days, profile.planStartDate),
+    ...planSnapshot({ planDayId, date }, plan, days, profile.planStartDate, profile.rampUpWeeks),
   })
   return id
 }

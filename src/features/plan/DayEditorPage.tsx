@@ -33,7 +33,7 @@ export function DayEditorPage() {
   if (!allDays || !activeDays || !items || !profile) return null
   const day = allDays.find((d) => d.id === id)
   if (!day || day.archived) return <Navigate to="/plano" replace />
-  const phase = planPhase(planWeek(profile.planStartDate, toISODate()))
+  const phase = planPhase(planWeek(profile.planStartDate, toISODate()), profile.rampUpWeeks)
   const taken = new Set(activeDays.filter((d) => d.id !== day.id).map((d) => d.weekday))
 
   async function run(fn: () => Promise<unknown>) {
@@ -106,6 +106,7 @@ export function DayEditorPage() {
               index={i}
               count={items.length}
               phase={phase}
+              rampUp={(profile.rampUpWeeks ?? 3) > 0}
               open={openItem === it.id}
               onToggle={() => setOpenItem(openItem === it.id ? undefined : it.id)}
               onSwap={() => setPicker({ mode: 'swap', itemId: it.id })}
@@ -146,6 +147,7 @@ function ItemEditor({
   index,
   count,
   phase,
+  rampUp,
   open,
   onToggle,
   onSwap,
@@ -154,6 +156,8 @@ function ItemEditor({
   index: number
   count: number
   phase: 1 | 2
+  /** Perfil com readaptação: mostra as séries das duas fases. */
+  rampUp: boolean
   open: boolean
   onToggle: () => void
   onSwap: () => void
@@ -196,10 +200,14 @@ function ItemEditor({
 
       {open && (
         <div className="space-y-3 border-t-2 border-iron-800 p-3">
-          <div className="grid grid-cols-2 gap-3">
-            <Stepper label="Séries, semanas 1–3" value={item.setsPhase1} min={1} max={10} onChange={(v) => save({ setsPhase1: v })} />
-            <Stepper label="Séries, semana 4+" value={item.setsPhase2} min={1} max={10} onChange={(v) => save({ setsPhase2: v })} />
-          </div>
+          {rampUp ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Stepper label="Séries na readaptação" value={item.setsPhase1} min={1} max={10} onChange={(v) => save({ setsPhase1: v })} />
+              <Stepper label="Séries normais" value={item.setsPhase2} min={1} max={10} onChange={(v) => save({ setsPhase2: v })} />
+            </div>
+          ) : (
+            <Stepper label="Séries" value={item.setsPhase2} min={1} max={10} onChange={(v) => save({ setsPhase2: v })} />
+          )}
 
           <Segmented<'reps' | 'seconds'>
             value={timed ? 'seconds' : 'reps'}

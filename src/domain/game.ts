@@ -119,7 +119,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   ach('ferro-temperado', 'Ferro temperado', 'Complete 8 semanas inteiras de treino.', 'shield', 500, (s) => s.fullWeeks, 8),
   ach('chama-viva', 'Chama viva', 'Treine 4 semanas seguidas.', 'flame', 200, (s) => s.bestStreakWeeks, 4),
   ach('fogo-eterno', 'Fogo eterno', 'Treine 12 semanas seguidas.', 'flame', 600, (s) => s.bestStreakWeeks, 12),
-  ach('fim-da-readaptacao', 'Fim da readaptação', 'Chegue à semana 4 do plano.', 'scroll', 150, (s) => (s.reachedPhase2 ? 1 : 0), 1),
+  ach('fim-da-readaptacao', 'Fim da readaptação', 'Treine na fase principal do plano.', 'scroll', 150, (s) => (s.reachedPhase2 ? 1 : 0), 1),
   ach('primeiro-recorde', 'Primeiro recorde', 'Bata um recorde pessoal.', 'trophy', 75, (s) => s.prs, 1),
   ach('quebra-recordes', 'Quebra-recordes', 'Bata 10 recordes pessoais.', 'trophy', 250, (s) => s.prs, 10),
   ach('colecionador-de-recordes', 'Colecionador de recordes', 'Bata 50 recordes pessoais.', 'crown', 800, (s) => s.prs, 50),
@@ -161,6 +161,8 @@ export interface GameInput {
   plan: { planDayId: string; setsPhase1: number; setsPhase2: number }[]
   plannedDaysPerWeek: number
   planStartDate: string
+  /** Semanas de readaptação do perfil (padrão 3). */
+  rampUpWeeks?: number
   measurementDates: string[]
 }
 
@@ -253,9 +255,9 @@ export function computeGame(input: GameInput): GameState {
     ev('workout', XP.workout, 'Treino concluído')
     if (sets.length) ev('perSet', sets.length * XP.perSet, `${sets.length} ${sets.length === 1 ? 'série' : 'séries'}`)
 
-    if (planWeek(input.planStartDate, sess.date) >= 4) stats.reachedPhase2 = true
+    if (planWeek(input.planStartDate, sess.date) > (input.rampUpWeeks ?? 3)) stats.reachedPhase2 = true
     // retrato gravado no início do treino; o plano atual é só reserva para sessões antigas
-    const planned = sess.plannedSets ?? plannedSetsFor(sess.planDayId, sess.date, input.plan, input.planStartDate)
+    const planned = sess.plannedSets ?? plannedSetsFor(sess.planDayId, sess.date, input.plan, input.planStartDate, input.rampUpWeeks)
     if (planned > 0 && sets.length >= planned) ev('fullWorkout', XP.fullWorkout, 'Treino completo')
 
     // recordes e progressão por exercício

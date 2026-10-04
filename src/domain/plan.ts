@@ -1,14 +1,15 @@
 import { planPhase, planWeek } from './dates'
 import type { PlanDay, PlanExercise, WorkoutSession } from './types'
 
-/** Séries planejadas de um dia de treino numa data (fase 1 nas semanas 1–3, fase 2 depois). */
+/** Séries planejadas de um dia de treino numa data (fase 1 na readaptação, fase 2 depois). */
 export function plannedSetsFor(
   planDayId: string,
   date: string,
   plan: Pick<PlanExercise, 'planDayId' | 'setsPhase1' | 'setsPhase2'>[],
   planStartDate: string,
+  rampUpWeeks?: number,
 ): number {
-  const phase = planPhase(planWeek(planStartDate, date))
+  const phase = planPhase(planWeek(planStartDate, date), rampUpWeeks)
   return plan.filter((p) => p.planDayId === planDayId).reduce((a, p) => a + (phase === 1 ? p.setsPhase1 : p.setsPhase2), 0)
 }
 
@@ -18,9 +19,10 @@ export function planSnapshot(
   plan: Pick<PlanExercise, 'planDayId' | 'setsPhase1' | 'setsPhase2'>[],
   days: Pick<PlanDay, 'archived'>[],
   planStartDate: string,
+  rampUpWeeks?: number,
 ): Pick<WorkoutSession, 'plannedSets' | 'plannedDaysPerWeek'> {
   return {
-    plannedSets: plannedSetsFor(session.planDayId, session.date, plan, planStartDate),
+    plannedSets: plannedSetsFor(session.planDayId, session.date, plan, planStartDate, rampUpWeeks),
     plannedDaysPerWeek: days.filter((d) => !d.archived).length,
   }
 }

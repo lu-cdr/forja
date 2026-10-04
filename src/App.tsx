@@ -17,6 +17,9 @@ import { UpdateBanner } from './components/UpdateBanner'
 import { OnboardingPage } from './features/onboarding/OnboardingPage'
 import { useHasProfile } from './db/hooks'
 
+// Laboratório de sprites: só em desenvolvimento, nunca entra no build publicado
+const SpriteLab = import.meta.env.DEV ? lazy(() => import('./features/lab/SpriteLab').then((m) => ({ default: m.SpriteLab }))) : null
+
 // Gráficos (Recharts) em chunk separado: a tela Hoje abre mais rápido.
 const ProgressPage = lazy(() => import('./features/progress/ProgressPage').then((m) => ({ default: m.ProgressPage })))
 const MeasurementsPage = lazy(() => import('./features/measurements/MeasurementsPage').then((m) => ({ default: m.MeasurementsPage })))
@@ -46,6 +49,7 @@ function Shell() {
           <Route path="/ajustes" element={<SettingsPage />} />
           <Route path="/forja" element={<CharacterPage />} />
           <Route path="/recompensa/:id" element={<RewardPage />} />
+          {SpriteLab && <Route path="/lab/sprites" element={<SpriteLab />} />}
         </Routes>
         </Suspense>
         </ErrorBoundary>

@@ -44,6 +44,7 @@ export const useGameInput = (): GameInput | undefined =>
       plan,
       plannedDaysPerWeek: planDays.length,
       planStartDate: profile.planStartDate,
+      rampUpWeeks: profile.rampUpWeeks,
       measurementDates: measurements.map((m) => m.date),
     }
   }, [])

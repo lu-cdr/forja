@@ -45,6 +45,29 @@ describe('primeira abertura', () => {
     expect(items.find((i) => i.exerciseName.startsWith('Afundo'))?.note).toBe('por perna')
   })
 
+  it('guarda idade, experiência, rotina, aparência; sem readaptação o treino já pede o volume cheio', async () => {
+    const other = new FitDB(`test-perfil-${n}`)
+    repo.setDatabase(other)
+    await repo.setupNewUser({
+      templateId: 'superior-inferior-4x',
+      birthYear: 1996,
+      trainingLevel: 'avancado',
+      activityLevel: 'ativo',
+      rampUpWeeks: 0,
+      smith: { skin: 'orc', hair: 'careca', beard: 'ruivo' },
+    })
+    const p = await repo.getProfile()
+    expect(p).toMatchObject({ birthYear: 1996, trainingLevel: 'avancado', activityLevel: 'ativo', rampUpWeeks: 0, smith: { skin: 'orc' } })
+    expect(p.planStartDate).toMatch(/^\d{4}-\d{2}-\d{2}$/) // hoje
+    const [day] = await repo.getPlanDays()
+    const items = await repo.getPlanItems(day.id)
+    await repo.startSession(day.id)
+    const s = (await repo.getActiveSession())!
+    expect(s.plannedSets).toBe(items.reduce((a, i) => a + i.setsPhase2, 0))
+    await other.delete()
+    repo.setDatabase(db)
+  })
+
   it('cada modelo cria dias válidos; "do zero" começa vazio mas com catálogo', async () => {
     for (const [id, weekdays] of [
       ['superior-inferior-4x', [1, 2, 4, 5]],

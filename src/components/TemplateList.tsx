@@ -5,10 +5,10 @@ import { cx } from './ui'
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]
 
 /** Escolha de modelo de plano: cartões com os dias da semana de cada um. */
-export function TemplateList({ value, onChange }: { value?: string; onChange: (id: string) => void }) {
+export function TemplateList({ value, onChange, recommendedId }: { value?: string; onChange: (id: string) => void; recommendedId?: string }) {
   return (
     <ul className="space-y-2" role="radiogroup" aria-label="Modelo de plano">
-      {TEMPLATES.map((t) => {
+      {[...TEMPLATES].sort((a, b) => Number(b.id === recommendedId) - Number(a.id === recommendedId)).map((t) => {
         const days = new Set(templateWeekdays(t))
         const selected = t.id === value
         return (
@@ -21,7 +21,12 @@ export function TemplateList({ value, onChange }: { value?: string; onChange: (i
               className={cx('w-full rounded-2xl bg-iron-850 p-4 text-left', selected ? 'frame-gold' : 'frame')}
             >
               <div className="flex items-start justify-between gap-3">
-                <p className="num text-xl leading-tight">{t.name}</p>
+                <div className="min-w-0">
+                  {t.id === recommendedId && (
+                    <span className="mb-1 inline-block bg-xp px-1.5 py-0.5 text-[11px] font-semibold text-iron-950">Recomendado para você</span>
+                  )}
+                  <p className="num text-xl leading-tight">{t.name}</p>
+                </div>
                 <span
                   className={cx('mt-0.5 size-5 shrink-0 border-2', selected ? 'border-xp-deep bg-xp' : 'border-iron-600 bg-iron-950')}
                   aria-hidden="true"

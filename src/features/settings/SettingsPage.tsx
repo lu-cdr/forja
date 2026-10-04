@@ -8,6 +8,8 @@ import { clearHistory, loadSampleData } from '../../db/sample'
 import { formatDateBR } from '../../domain/dates'
 import { playCoin, setSfxEnabled, sfxEnabled } from '../../components/sfx'
 import { InstallGuide } from '../../components/InstallGuide'
+import { ACTIVITY_LEVELS, TRAINING_LEVELS, ageFromBirthYear } from '../../domain/recommend'
+import type { ActivityLevel, TrainingLevel } from '../../domain/types'
 
 export function SettingsPage() {
   const profile = useProfile()
@@ -139,8 +141,59 @@ export function SettingsPage() {
 
       <Section className="mb-6" title="Perfil">
         <div className="divide-y divide-iron-800 frame rounded-2xl bg-iron-850 px-4 py-1">
+          <label className="flex items-center justify-between gap-3 py-2">
+            <span className="text-[15px]">Idade</span>
+            <span className="flex items-center gap-2">
+              <input
+                inputMode="numeric"
+                defaultValue={ageFromBirthYear(profile.birthYear) ?? ''}
+                onBlur={(e) => {
+                  const n = Number(e.target.value)
+                  void updateProfile({ birthYear: e.target.value.trim() && n > 0 && n < 120 ? new Date().getFullYear() - Math.round(n) : undefined })
+                }}
+                className="num h-11 w-24 rounded-xl bg-iron-800 px-3 text-right text-xl"
+                placeholder="—"
+              />
+              <span className="w-6 text-sm text-iron-500">anos</span>
+            </span>
+          </label>
           {numField('Altura', 'heightCm', 'cm')}
           {numField('Peso inicial', 'startWeightKg', 'kg')}
+          <label className="flex items-center justify-between gap-3 py-2">
+            <span className="text-[15px]">Experiência</span>
+            <select
+              value={profile.trainingLevel ?? ''}
+              onChange={(e) => void updateProfile({ trainingLevel: (e.target.value || undefined) as TrainingLevel | undefined })}
+              className="h-11 rounded-xl bg-iron-800 px-3 text-[15px]"
+            >
+              <option value="">—</option>
+              {TRAINING_LEVELS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center justify-between gap-3 py-2">
+            <span className="text-[15px]">Rotina</span>
+            <select
+              value={profile.activityLevel ?? ''}
+              onChange={(e) => void updateProfile({ activityLevel: (e.target.value || undefined) as ActivityLevel | undefined })}
+              className="h-11 rounded-xl bg-iron-800 px-3 text-[15px]"
+            >
+              <option value="">—</option>
+              {ACTIVITY_LEVELS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </Section>
+
+      <Section className="mb-6" title="Plano">
+        <div className="divide-y divide-iron-800 frame rounded-2xl bg-iron-850 px-4 py-1">
           <label className="flex items-center justify-between gap-3 py-2">
             <span className="text-[15px]">Início do plano</span>
             <input
@@ -150,8 +203,24 @@ export function SettingsPage() {
               className="h-11 rounded-xl bg-iron-800 px-3 text-[15px]"
             />
           </label>
+          <label className="flex items-center justify-between gap-3 py-2">
+            <span className="text-[15px]">
+              Readaptação
+              <span className="block text-xs text-iron-400">Semanas iniciais com menos séries</span>
+            </span>
+            <select
+              value={String(profile.rampUpWeeks ?? 3)}
+              onChange={(e) => void updateProfile({ rampUpWeeks: Number(e.target.value) })}
+              className="h-11 rounded-xl bg-iron-800 px-3 text-[15px]"
+            >
+              <option value="0">Sem</option>
+              <option value="2">2 semanas</option>
+              <option value="3">3 semanas</option>
+              <option value="4">4 semanas</option>
+            </select>
+          </label>
         </div>
-        <p className="mt-2 text-xs text-iron-500">O início do plano define as semanas 1–3 (readaptação, menos séries) e a fase principal.</p>
+        <p className="mt-2 text-xs text-iron-500">Treinos já feitos não mudam: cada um guarda as séries planejadas no dia.</p>
       </Section>
 
       <Section className="mb-6" title="Armazenamento">

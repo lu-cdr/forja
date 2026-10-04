@@ -18,7 +18,7 @@ export function PlanPage() {
   const [picked, setPicked] = useState<string>()
   if (!days || !profile) return null
   const week = planWeek(profile.planStartDate, toISODate())
-  const phase = planPhase(week)
+  const phase = planPhase(week, profile.rampUpWeeks)
   // segunda primeiro, domingo no fim
   const sorted = [...days].sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7))
 
@@ -53,7 +53,7 @@ export function PlanPage() {
           <Icon name="back" /> Hoje
         </Button>
       </div>
-      <PageHeader title="Plano" sub={`Semana ${week}, ${phase === 1 ? 'readaptação (semanas 1–3)' : 'fase principal (semana 4+)'}`} />
+      <PageHeader title="Plano" sub={`Semana ${week}, ${phase === 1 ? `readaptação, até a semana ${profile.rampUpWeeks ?? 3}` : 'fase principal'}`} />
       <Section className="space-y-3">
         {sorted.map((d) => (
           <DayCard key={d.id} day={d} phase={phase} />

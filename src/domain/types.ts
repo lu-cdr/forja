@@ -31,7 +31,7 @@ export interface Profile {
   birthDate?: string
   startWeightKg?: number
   goal?: string
-  /** Início do plano (YYYY-MM-DD) — define semanas 1–3 x 4+. */
+  /** Início do plano (YYYY-MM-DD): conta as semanas e a fase de readaptação. */
   planStartDate: string
   /** Último export de backup (ISO completo). */
   lastExportAt?: string
@@ -43,6 +43,24 @@ export interface Profile {
   planTemplate?: string
   /** Quando passou pela tela de boas-vindas (ISO completo). */
   onboardedAt?: string
+  /** Aparência do ferreiro. Ausente = visual padrão. */
+  smith?: SmithLook
+  /** Ano de nascimento (a idade é calculada). */
+  birthYear?: number
+  trainingLevel?: TrainingLevel
+  activityLevel?: ActivityLevel
+  /** Semanas iniciais com menos séries (readaptação). Ausente = 3, como no plano original. */
+  rampUpWeeks?: number
+}
+
+export type TrainingLevel = 'iniciante' | 'intermediario' | 'avancado'
+export type ActivityLevel = 'sedentario' | 'pouco-ativo' | 'ativo' | 'muito-ativo'
+
+/** Ids de predefinições (ver src/components/sprites/materials.ts). Ids desconhecidos caem no padrão. */
+export interface SmithLook {
+  skin: string
+  hair: string
+  beard: string
 }
 
 export interface Exercise {

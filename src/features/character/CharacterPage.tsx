@@ -1,8 +1,12 @@
 import { Link } from 'react-router-dom'
 import { Smith } from '../../components/Smith'
 import { AttributeRow, LevelBadge, PixelIcon, XpBar } from '../../components/game'
-import { Icon, PageHeader, Section, Stat, cx } from '../../components/ui'
-import { useGame } from '../../db/hooks'
+import { Button, Icon, PageHeader, Section, Sheet, Stat, cx } from '../../components/ui'
+import { SmithCustomizer } from '../../components/SmithCustomizer'
+import { DEFAULT_LOOK } from '../../components/sprites/materials'
+import { updateProfile } from '../../db/repo'
+import { useState } from 'react'
+import { useGame, useProfile } from '../../db/hooks'
 import { fmt } from '../../domain/calc'
 import { formatDateBR } from '../../domain/dates'
 import { ACHIEVEMENTS, RANKS, XP, levelProgress } from '../../domain/game'
@@ -19,7 +23,9 @@ const XP_RULES: [string, number][] = [
 
 export function CharacterPage() {
   const data = useGame()
-  if (!data) return null
+  const profile = useProfile()
+  const [customizing, setCustomizing] = useState(false)
+  if (!data || !profile) return null
   const { game } = data
   const { stats } = game
   const unlockedIds = new Map(game.unlocked.map((u) => [u.def.id, u.date]))
@@ -56,6 +62,9 @@ export function CharacterPage() {
               </div>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-iron-300">{game.rank.flavor}</p>
+            <Button className="mt-3 w-full" onClick={() => setCustomizing(true)}>
+              <Icon name="edit" className="size-4" /> Personalizar ferreiro
+            </Button>
           </div>
         </div>
       </Section>
@@ -167,6 +176,13 @@ export function CharacterPage() {
           </ul>
         </Section>
       )}
+
+      <Sheet open={customizing} onClose={() => setCustomizing(false)} title="Personalizar ferreiro">
+        <SmithCustomizer value={profile.smith ?? DEFAULT_LOOK} onChange={(smith) => void updateProfile({ smith })} />
+        <Button variant="primary" className="mt-5 w-full" onClick={() => setCustomizing(false)}>
+          Pronto
+        </Button>
+      </Sheet>
     </div>
   )
 }
