@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Icon, PageHeader, Section, cx } from '../../components/ui'
-import { useActiveSession, useFinishedSessions, useAllPlanDays, useGame, usePlanDays, usePlanItems, useProfile } from '../../db/hooks'
-import { startSession } from '../../db/repo'
+import { useActiveSession, useFinishedSessions, useAllPlanDays, useGame, usePlanDays, usePlanItems, useProfile, useSessionSets } from '../../db/hooks'
+import { discardSession, finishAbandonedSession, startSession } from '../../db/repo'
+import { isAbandoned, lastActivityAt } from '../../domain/session'
 import { BACKUP_REMINDER_DAYS, daysSinceExport } from '../../db/backup'
 import { WEEKDAY_LONG, WEEKDAY_SHORT, fromISODate, planPhase, planWeek, startOfWeek, toISODate } from '../../domain/dates'
 import { MUSCLE_LABEL, type MuscleGroup } from '../../domain/types'
@@ -21,6 +22,7 @@ export function TodayPage() {
   const allDays = useAllPlanDays()
   const profile = useProfile()
   const active = useActiveSession()
+  const activeSets = useSessionSets(active?.id)
   const sessions = useFinishedSessions()
   const gameData = useGame()
   const quests = gameData && planDays ? questsFor(gameData.input, today, planDays.map((p) => p.weekday)) : undefined
@@ -57,6 +59,17 @@ export function TodayPage() {
     if (!selected) return
     await startSession(selected.id)
     navigate('/treino')
+  }
+
+  async function onFinishAbandoned() {
+    if (!active) return
+    if (await finishAbandonedSession(active.id)) navigate(`/recompensa/${active.id}`)
+  }
+
+  async function onDiscardAbandoned() {
+    if (!active) return
+    if (!window.confirm('Descartar este treino? As séries registradas serão apagadas.')) return
+    await discardSession(active.id)
   }
 
   if (!planDays || !profile) return null
@@ -118,7 +131,7 @@ export function TodayPage() {
                     done && 'bg-rubber text-iron-950 font-semibold',
                     !done && isToday && 'ring-2 ring-rubber',
                     !done && !isToday && isPlanned && 'bg-iron-700 text-iron-300',
-                    !done && !isToday && !isPlanned && 'text-iron-600',
+                    !done && !isToday && !isPlanned && 'text-iron-500',
                   )}
                   aria-label={done ? 'treino feito' : isPlanned ? 'treino planejado' : 'descanso'}
                 >
@@ -146,7 +159,31 @@ export function TodayPage() {
         </Section>
       )}
 
-      {active ? (
+      {active && activeSets && isAbandoned(active, activeSets) ? (
+        <Section className="mb-5">
+          <div className="frame-gold rounded-3xl bg-iron-850 p-5">
+            <p className="text-sm text-pr">Treino esquecido aberto</p>
+            <h2 className="font-display text-3xl leading-tight font-bold">{allDays?.find((p) => p.id === active.planDayId)?.name ?? 'Treino'}</h2>
+            <p className="mt-1 text-sm text-iron-300">
+              Começou {active.date === today ? 'hoje' : `em ${formatDateBR(active.date, { weekday: 'long', day: 'numeric', month: 'long' })}`}
+              {activeSets.length > 0
+                ? `, com ${activeSets.length} ${activeSets.length === 1 ? 'série' : 'séries'}. A última foi às ${new Date(lastActivityAt(active, activeSets)).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`
+                : ' e não tem nenhuma série registrada.'}
+            </p>
+            {activeSets.length > 0 && (
+              <Button variant="primary" className="mt-4 min-h-14 w-full text-lg" onClick={onFinishAbandoned}>
+                Concluir com o que foi feito
+              </Button>
+            )}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <Button onClick={() => navigate('/treino')}>Continuar</Button>
+              <Button variant="danger" onClick={onDiscardAbandoned}>
+                Descartar
+              </Button>
+            </div>
+          </div>
+        </Section>
+      ) : active ? (
         <Section className="mb-5">
           <button
             type="button"

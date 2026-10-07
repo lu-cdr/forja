@@ -49,6 +49,7 @@ npm run build      # build de produção
 npm run test       # testes (Vitest)
 npm run lint       # lint
 npm run seed       # regenera src/seed/plan.generated.ts a partir do .xlsx
+npm run icons      # regenera os ícones PNG (iPhone/Android) a partir de public/icon.svg
 npm run celular    # build + servidor na rede local (porta 4173) para o Android
 ```
 

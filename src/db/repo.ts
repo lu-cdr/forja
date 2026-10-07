@@ -1,6 +1,7 @@
 import { CATALOG, DEFAULT_TEMPLATE_ID, SEED_VERSION, getTemplate } from '../seed/plan'
 import { toISODate } from '../domain/dates'
 import { planSnapshot } from '../domain/plan'
+import { lastActivityAt } from '../domain/session'
 import type { ActivityLevel, BodyMeasurement, PlanExercise, Profile, SetLog, SmithLook, TrainingLevel, WorkoutSession } from '../domain/types'
 import { db as defaultDb, newId, type FitDB } from './db'
 
@@ -166,14 +167,26 @@ export async function startSession(planDayId: string, now = new Date()): Promise
   return id
 }
 
-export async function finishSession(id: string, notes?: string): Promise<void> {
+export async function finishSession(id: string, notes?: string, finishedAt = new Date().toISOString()): Promise<void> {
   const count = await db.sets.where('sessionId').equals(id).count()
   if (count === 0) {
     // Sessão sem séries não vira histórico.
     await db.sessions.delete(id)
     return
   }
-  await db.sessions.update(id, { finishedAt: new Date().toISOString(), notes: notes?.trim() || undefined })
+  await db.sessions.update(id, { finishedAt, notes: notes?.trim() || undefined })
+}
+
+/**
+ * Conclui um treino esquecido aberto com o horário da última série (não o de agora),
+ * para a duração no histórico não virar "19h". Devolve se ele foi para o histórico.
+ */
+export async function finishAbandonedSession(id: string): Promise<boolean> {
+  const session = await db.sessions.get(id)
+  if (!session || session.finishedAt) return false
+  const sets = await db.sets.where('sessionId').equals(id).toArray()
+  await finishSession(id, undefined, lastActivityAt(session, sets))
+  return sets.length > 0
 }
 
 export async function discardSession(id: string): Promise<void> {

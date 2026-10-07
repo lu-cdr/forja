@@ -3,7 +3,16 @@ import { Link } from 'react-router-dom'
 import { Button, Icon, PageHeader, Section } from '../../components/ui'
 import { useFinishedSessions, useMeasurements, useProfile } from '../../db/hooks'
 import { isStoragePersisted, requestPersistentStorage, updateProfile } from '../../db/repo'
-import { backupFileName, daysSinceExport, exportAll, importAll, parseBackup } from '../../db/backup'
+import {
+  backupFileName,
+  daysSinceExport,
+  exportAll,
+  importAll,
+  markExported,
+  parseBackup,
+  preImportSnapshotDate,
+  undoImport,
+} from '../../db/backup'
 import { clearHistory, loadSampleData } from '../../db/sample'
 import { formatDateBR } from '../../domain/dates'
 import { playCoin, setSfxEnabled, sfxEnabled } from '../../components/sfx'
@@ -19,9 +28,11 @@ export function SettingsPage() {
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string }>()
   const fileRef = useRef<HTMLInputElement>(null)
   const [sfx, setSfx] = useState(sfxEnabled)
+  const [undoFrom, setUndoFrom] = useState<string>()
 
   useEffect(() => {
     void isStoragePersisted().then(setPersisted)
+    void preImportSnapshotDate().then(setUndoFrom)
   }, [])
 
   if (!profile || !sessions || !measurements) return null
@@ -36,9 +47,11 @@ export function SettingsPage() {
     if (navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: 'Backup Forja' })
+        await markExported(data.exportedAt)
         setMsg({ kind: 'ok', text: 'Backup exportado.' })
         return
       } catch (e) {
+        // cancelou o compartilhamento: nada foi salvo, o lembrete continua
         if ((e as Error).name === 'AbortError') return
       }
     }
@@ -48,6 +61,7 @@ export function SettingsPage() {
     a.download = file.name
     a.click()
     URL.revokeObjectURL(url)
+    await markExported(data.exportedAt)
     setMsg({ kind: 'ok', text: `Backup exportado: ${file.name}` })
   }
 
@@ -55,12 +69,20 @@ export function SettingsPage() {
     try {
       const backup = parseBackup(await f.text())
       const n = backup.data.sessions.length
-      if (!window.confirm(`Importar backup de ${formatDateBR(backup.exportedAt, { day: 'numeric', month: 'long', year: 'numeric' })} com ${n} treinos? Isso SUBSTITUI todos os dados atuais.`)) return
+      if (!window.confirm(`Importar backup de ${formatDateBR(backup.exportedAt, { day: 'numeric', month: 'long', year: 'numeric' })} com ${n} treinos? Isso SUBSTITUI todos os dados atuais (dá para desfazer depois).`)) return
       await importAll(backup)
+      setUndoFrom(await preImportSnapshotDate())
       setMsg({ kind: 'ok', text: 'Backup importado.' })
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'Falha ao importar.' })
     }
+  }
+
+  async function onUndoImport() {
+    if (!window.confirm('Voltar aos dados de antes da última importação? Os dados importados e tudo o que foi registrado depois dela serão substituídos.')) return
+    await undoImport()
+    setUndoFrom(undefined)
+    setMsg({ kind: 'ok', text: 'Importação desfeita: os dados anteriores voltaram.' })
   }
 
   const numField = (label: string, key: 'heightCm' | 'startWeightKg', unit: string) => (
@@ -113,6 +135,17 @@ export function SettingsPage() {
               if (f) void onImportFile(f)
             }}
           />
+          {/* só por uma semana: depois disso desfazer apagaria treinos novos demais */}
+          {undoFrom && (daysSinceExport(undoFrom) ?? 0) <= 7 && (
+            <div className="mt-4 border-t border-iron-700 pt-3">
+              <p className="text-sm text-iron-300">
+                Há uma cópia dos dados de antes da última importação ({formatDateBR(undoFrom, { day: 'numeric', month: 'long' })}).
+              </p>
+              <Button className="mt-2 w-full" onClick={onUndoImport}>
+                Desfazer importação
+              </Button>
+            </div>
+          )}
           {msg && <p className={`mt-3 text-sm ${msg.kind === 'ok' ? 'text-ok' : 'text-danger'}`}>{msg.text}</p>}
         </div>
       </Section>
@@ -284,7 +317,7 @@ export function SettingsPage() {
         </div>
       </Section>
 
-      <p className="px-4 pb-4 text-center text-xs text-iron-600">Forja. Nada sai deste aparelho.</p>
+      <p className="px-4 pb-4 text-center text-xs text-iron-500">Forja. Nada sai deste aparelho.</p>
     </div>
   )
 }

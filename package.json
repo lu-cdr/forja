@@ -8,6 +8,7 @@
         "test": "vitest run",
         "lint": "eslint .",
         "seed": "node scripts/seed-from-xlsx.mjs",
+        "icons": "node scripts/make-icons.mjs",
         "celular": "npm run build && vite preview --host"
     },
     "dependencies": {

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { FitDB } from './db'
 import * as repo from './repo'
-import { exportAll, importAll, parseBackup } from './backup'
+import { exportAll, importAll, markExported, parseBackup, preImportSnapshotDate, undoImport } from './backup'
 import { loadSampleData } from './sample'
 
 let db: FitDB
@@ -140,6 +140,25 @@ describe('sessão de treino', () => {
     ])
   })
 
+  it('treino esquecido aberto é concluído com o horário da última série', async () => {
+    const [day] = await repo.getPlanDays()
+    const [item] = await repo.getPlanItems(day.id)
+    const id = await repo.startSession(day.id, new Date('2026-10-06T10:00:00.000Z'))
+    await repo.logSet({ sessionId: id, exerciseId: item.exerciseId, setNumber: 1, weightKg: 40, reps: 10, isWarmup: false })
+    await db.sets.toCollection().modify({ loggedAt: '2026-10-06T10:20:00.000Z' })
+
+    expect(await repo.finishAbandonedSession(id)).toBe(true)
+    const s = await repo.getSession(id)
+    expect(s?.finishedAt).toBe('2026-10-06T10:20:00.000Z')
+    expect(s?.date).toBe('2026-10-06')
+    expect(await repo.getActiveSession()).toBeUndefined()
+
+    // sem séries: não vai para o histórico
+    const empty = await repo.startSession(day.id)
+    expect(await repo.finishAbandonedSession(empty)).toBe(false)
+    expect(await repo.getSession(empty)).toBeUndefined()
+  })
+
   it('sessão sem séries é descartada ao finalizar', async () => {
     const [day] = await repo.getPlanDays()
     const id = await repo.startSession(day.id)
@@ -163,7 +182,6 @@ describe('backup', () => {
     const after = await exportAll()
 
     for (const t of Object.keys(before.data) as (keyof typeof before.data)[]) {
-      if (t === 'profile') continue // lastExportAt muda a cada export
       const sortById = (a: unknown[]) => [...a].sort((x, y) => String((x as { id: string }).id).localeCompare((y as { id: string }).id))
       expect(sortById(after.data[t])).toEqual(sortById(before.data[t]))
     }
@@ -174,5 +192,45 @@ describe('backup', () => {
   it('rejeita arquivos inválidos', () => {
     expect(() => parseBackup('não é json')).toThrow()
     expect(() => parseBackup('{"foo":1}')).toThrow(/backup/)
+  })
+
+  it('rejeita backup com registro estragado, dizendo qual', async () => {
+    await loadSampleData(1)
+    const ok = await exportAll()
+    const broken = structuredClone(ok)
+    ;(broken.data.sets[2] as { reps: unknown }).reps = 'dez'
+    expect(() => parseBackup(JSON.stringify(broken))).toThrow(/sets nº 3/)
+    const dup = structuredClone(ok)
+    dup.data.sessions.push(dup.data.sessions[0])
+    expect(() => parseBackup(JSON.stringify(dup))).toThrow(/sessions/)
+    expect(() => parseBackup(JSON.stringify(ok))).not.toThrow()
+  })
+
+  it('exportar não zera o lembrete; só markExported (arquivo salvo de verdade)', async () => {
+    await exportAll()
+    expect((await repo.getProfile()).lastExportAt).toBeUndefined()
+    await markExported('2026-10-07T10:00:00.000Z')
+    expect((await repo.getProfile()).lastExportAt).toBe('2026-10-07T10:00:00.000Z')
+  })
+
+  it('importar o arquivo errado pode ser desfeito', async () => {
+    await loadSampleData(2)
+    const mine = await exportAll()
+    // backup de outra pessoa: só a pesagem inicial
+    const other = new FitDB(`test-outro-${n}`)
+    repo.setDatabase(other)
+    await repo.setupNewUser({ templateId: 'corpo-inteiro-3x', weightKg: 70 })
+    const theirs = await exportAll()
+    await other.delete()
+    repo.setDatabase(db)
+
+    await importAll(parseBackup(JSON.stringify(theirs)))
+    expect(await repo.getFinishedSessions()).toHaveLength(0)
+    expect(await preImportSnapshotDate()).toBeDefined()
+
+    expect(await undoImport()).toBe(true)
+    expect((await repo.getFinishedSessions()).length).toBe(mine.data.sessions.length)
+    expect(await preImportSnapshotDate()).toBeUndefined()
+    expect(await undoImport()).toBe(false)
   })
 })
