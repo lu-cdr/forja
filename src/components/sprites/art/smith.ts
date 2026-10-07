@@ -79,6 +79,10 @@ const P = {
   metal: '2',
   metalShade: '3',
   metalHi: '1',
+  // cabeça do martelo: índices próprios para trocar o material (ferro, bronze, ouro…) sem mexer na armadura
+  head: 'z',
+  headShade: 'a',
+  headHi: 'x',
   rune: 'R',
   cape: 'Q',
   capeShade: 'Z',
@@ -110,9 +114,9 @@ function drawHammer(g: Grid, tier: number, cx: number, top: number, s: TierShape
   g.rect(hx, top + s.hammerH, hw, handleLen, P.wood)
   if (hw === 2) g.col(hx + 1, top + s.hammerH, top + s.hammerH + handleLen - 1, P.woodShade)
   const x0 = cx - Math.floor(s.hammerW / 2)
-  g.rect(x0, top, s.hammerW, s.hammerH, P.metal)
-  g.rect(x0, top + s.hammerH - 1, s.hammerW, 1, P.metalShade)
-  g.rect(x0, top, s.hammerW, 1, P.metalHi)
+  g.rect(x0, top, s.hammerW, s.hammerH, P.head)
+  g.rect(x0, top + s.hammerH - 1, s.hammerW, 1, P.headShade)
+  g.rect(x0, top, s.hammerW, 1, P.headHi)
   if (tier >= 3) {
     g.col(x0 + 1, top, top + s.hammerH - 1, P.gold)
     g.col(x0 + s.hammerW - 2, top, top + s.hammerH - 1, P.gold)

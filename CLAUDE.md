@@ -85,6 +85,16 @@ Dias removidos do plano são arquivados (`archived`), nunca apagados, para o his
   dias da semana, e reordenar troca o dia entre vizinhos). `daysPerWeek` dá a meta de treinos por semana nos dois casos.
 - **Treino de hoje** = `buildWorkout` (`domain/session.ts`): plano + `session.swaps` (troca só hoje) + `extraExercises`
   + exercícios com séries fora da lista. Campos novos opcionais: ausentes = comportamento antigo (sem migração).
+- **Sequência com brasas** (`streakTracker` em `domain/stats.ts`): a cada 4 semanas seguidas guarda uma brasa (máx. 2);
+  semana vazia gasta brasa em vez de quebrar. Usado pelo XP e pelas telas — não recalcular sequência por fora.
+- **Chefe da semana** (`bossFor` em `game.ts`): meta = 110% da média de volume das semanas com treino entre as 4
+  anteriores (precisa de 2); derrotar vale XP e conquistas.
+- **Visuais por conquista** (`domain/cosmetics.ts`): cenário (`.scene-*` no CSS) e material do martelo (índices x z a da
+  paleta). O destravado é derivado das conquistas; `profile.cosmetics` guarda só a escolha.
+- **Plano por link** (`domain/planShare.ts`): o plano vai inteiro no endereço (`#/plano/importar?p=…`, deflate+base64url);
+  só plano, nunca treinos/medidas/perfil. Validar tudo que vem do link.
+- **Fotos de progresso**: tabela `photos` (Dexie v3), JPEG reduzido a 1280 px; entram no backup v2 como data URL
+  (backup v1 sem fotos continua importando).
 - **XP é sempre derivado do histórico** (treinos, séries, medidas). Não persistir XP/nível no banco: assim apagar/editar
   treino recalcula tudo e o backup continua sendo só dados brutos. Mudar as regras reajusta o nível de todo mundo.
 - Mascote: ferreiro em pixel art da primeira versão (48×44, com bigorna e chão) em `src/components/sprites/art/smith.ts`,

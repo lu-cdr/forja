@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { XP, attributesFrom, computeGame, levelFromXp, questsFor, rankForLevel, rewardForSession, xpForLevel, type GameInput } from './game'
+import { XP, attributesFrom, bossFor, computeGame, levelFromXp, questsFor, rankForLevel, rewardForSession, xpForLevel, type GameInput } from './game'
 import type { SetLog, WorkoutSession } from './types'
 
 const sess = (id: string, date: string, planDayId = 'd1'): WorkoutSession => ({
@@ -99,6 +99,30 @@ describe('XP', () => {
     expect(g.stats.prs).toBe(2)
   })
 
+  it('chefe da semana: volume 10% acima da média das semanas anteriores vale XP e conquista', () => {
+    const sessions = [sess('a', '2026-10-06'), sess('b', '2026-10-13'), sess('c', '2026-10-20'), sess('d', '2026-10-27')]
+    const sets = [
+      set('a', 'x', 100, 10), // semana 1: 1000 kg
+      set('b', 'x', 100, 10), // semana 2: 1000 kg
+      set('c', 'x', 100, 10), // semana 3: 1000 < meta 1100
+      set('d', 'x', 100, 12), // semana 4: 1200 ≥ meta 1100
+    ]
+    const g = computeGame(base({ sessions, sets }))
+    expect(bossFor('2026-10-05', new Map())).toBeUndefined() // sem histórico, sem chefe
+    expect(g.events.filter((e) => e.kind === 'boss').map((e) => e.sessionId)).toEqual(['d'])
+    expect(g.stats.bosses).toBe(1)
+    expect(g.unlocked.map((u) => u.def.id)).toContain('cacador-de-chefes')
+    const q = questsFor(base({ sessions: sessions.slice(0, 3), sets: sets.slice(0, 3) }), '2026-10-28', [2]).find((x) => x.id === 'boss')!
+    expect(q).toMatchObject({ boss: true, done: false, progress: [0, 1100] })
+  })
+
+  it('sequência sobrevive a uma semana vazia com brasa guardada', () => {
+    const dates = ['2026-10-06', '2026-10-13', '2026-10-20', '2026-10-27', '2026-11-10'] // pula 02/11
+    const g = computeGame(base({ sessions: dates.map((d, i) => sess(`s${i}`, d)) }))
+    expect(g.stats.currentStreakWeeks).toBe(5)
+    expect(g.stats.bestStreakWeeks).toBe(5)
+  })
+
   it('semana completa e sequência de semanas', () => {
     const g = computeGame(
       base({
@@ -125,12 +149,12 @@ describe('XP', () => {
 
 describe('atributos', () => {
   it('começam baixos, sobem com retorno decrescente e respeitam o teto 99', () => {
-    const zero = attributesFrom({ workouts: 0, totalVolume: 0, prs: 0, currentStreakWeeks: 0, bestStreakWeeks: 0, fullWeeks: 0, measurementDays: 0, reachedPhase2: false, totalSets: 0 })
+    const zero = attributesFrom({ workouts: 0, totalVolume: 0, prs: 0, currentStreakWeeks: 0, bestStreakWeeks: 0, fullWeeks: 0, measurementDays: 0, reachedPhase2: false, totalSets: 0, bosses: 0 })
     expect(zero).toEqual({ forca: 5, vigor: 5, constancia: 5, disciplina: 5 })
-    const mid = attributesFrom({ workouts: 40, totalVolume: 150_000, prs: 25, currentStreakWeeks: 8, bestStreakWeeks: 8, fullWeeks: 6, measurementDays: 12, reachedPhase2: true, totalSets: 600 })
+    const mid = attributesFrom({ workouts: 40, totalVolume: 150_000, prs: 25, currentStreakWeeks: 8, bestStreakWeeks: 8, fullWeeks: 6, measurementDays: 12, reachedPhase2: true, totalSets: 600, bosses: 3 })
     expect(mid.forca).toBe(50)
     expect(Object.values(mid).every((v) => v > 5 && v < 99)).toBe(true)
-    const huge = attributesFrom({ workouts: 999, totalVolume: 9e6, prs: 999, currentStreakWeeks: 200, bestStreakWeeks: 200, fullWeeks: 200, measurementDays: 999, reachedPhase2: true, totalSets: 1e5 })
+    const huge = attributesFrom({ workouts: 999, totalVolume: 9e6, prs: 999, currentStreakWeeks: 200, bestStreakWeeks: 200, fullWeeks: 200, measurementDays: 999, reachedPhase2: true, totalSets: 1e5, bosses: 99 })
     expect(Object.values(huge).every((v) => v === 99)).toBe(true)
   })
 })

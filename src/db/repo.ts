@@ -2,7 +2,17 @@ import { CATALOG, DEFAULT_TEMPLATE_ID, SEED_VERSION, getTemplate } from '../seed
 import { toISODate } from '../domain/dates'
 import { planSnapshot } from '../domain/plan'
 import { buildWorkout, lastActivityAt } from '../domain/session'
-import type { ActivityLevel, BodyMeasurement, PlanExercise, Profile, SetLog, SmithLook, TrainingLevel, WorkoutSession } from '../domain/types'
+import type {
+  ActivityLevel,
+  BodyMeasurement,
+  PlanExercise,
+  Profile,
+  ProgressPhoto,
+  SetLog,
+  SmithLook,
+  TrainingLevel,
+  WorkoutSession,
+} from '../domain/types'
 import { db as defaultDb, newId, type FitDB } from './db'
 
 /** Permite injetar outro banco nos testes. */
@@ -323,6 +333,22 @@ export async function saveMeasurement(m: Omit<BodyMeasurement, 'id'> & { id?: st
 
 export async function deleteMeasurement(id: string) {
   await db.measurements.delete(id)
+}
+
+// ---------- fotos de progresso ----------
+
+export async function getPhotos(): Promise<ProgressPhoto[]> {
+  return (await db.photos.orderBy('date').toArray()).reverse()
+}
+
+export async function addPhoto(p: Omit<ProgressPhoto, 'id'>): Promise<string> {
+  const id = newId()
+  await db.photos.add({ ...p, id })
+  return id
+}
+
+export async function deletePhoto(id: string) {
+  await db.photos.delete(id)
 }
 
 // ---------- armazenamento ----------

@@ -9,6 +9,7 @@ import { HistoryPage } from './features/history/HistoryPage'
 import { SessionDetailPage } from './features/history/SessionDetailPage'
 import { PlanPage } from './features/plan/PlanPage'
 import { DayEditorPage } from './features/plan/DayEditorPage'
+import { PlanImportPage } from './features/plan/PlanImportPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { CharacterPage } from './features/character/CharacterPage'
 import { RewardPage } from './features/reward/RewardPage'
@@ -45,6 +46,7 @@ function Shell() {
           <Route path="/progresso" element={<ProgressPage />} />
           <Route path="/medidas" element={<MeasurementsPage />} />
           <Route path="/plano" element={<PlanPage />} />
+          <Route path="/plano/importar" element={<PlanImportPage />} />
           <Route path="/plano/:id" element={<DayEditorPage />} />
           <Route path="/ajustes" element={<SettingsPage />} />
           <Route path="/forja" element={<CharacterPage />} />

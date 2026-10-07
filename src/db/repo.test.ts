@@ -239,6 +239,32 @@ describe('backup', () => {
     await other.delete()
   })
 
+  it('fotos vão no backup e voltam iguais; backup v1 (sem fotos) continua importando', async () => {
+    const bytes = new Uint8Array([255, 216, 255, 224, 1, 2, 3, 4, 5, 250])
+    await repo.addPhoto({ date: '2026-10-07', angle: 'frente', blob: new Blob([bytes], { type: 'image/jpeg' }), width: 10, height: 20 })
+    const json = JSON.stringify(await exportAll())
+    const parsed = parseBackup(json)
+    expect(parsed.version).toBe(2)
+    expect((parsed.data.photos[0] as { data: string }).data).toMatch(/^data:image\/jpeg;base64,/)
+
+    const other = new FitDB(`test-fotos-${n}`)
+    repo.setDatabase(other)
+    await importAll(parsed)
+    const [photo] = await repo.getPhotos()
+    expect(photo).toMatchObject({ date: '2026-10-07', angle: 'frente', width: 10, height: 20 })
+    expect(new Uint8Array(await photo.blob.arrayBuffer())).toEqual(bytes)
+
+    // backup antigo, sem a tabela de fotos
+    const v1 = JSON.parse(json)
+    v1.version = 1
+    delete v1.data.photos
+    await importAll(parseBackup(JSON.stringify(v1)))
+    expect(await repo.getPhotos()).toEqual([])
+    expect(await repo.hasProfile()).toBe(true)
+    await other.delete()
+    repo.setDatabase(db)
+  })
+
   it('rejeita arquivos inválidos', () => {
     expect(() => parseBackup('não é json')).toThrow()
     expect(() => parseBackup('{"foo":1}')).toThrow(/backup/)

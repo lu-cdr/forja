@@ -10,12 +10,14 @@ import { MUSCLE_LABEL, type MuscleGroup } from '../../domain/types'
 import { formatDateBR } from '../../domain/dates'
 import { daysPerWeek, formatTarget, nextInRotation, sequenceOrder } from '../../domain/plan'
 import { levelProgress, questsFor } from '../../domain/game'
-import { fmt } from '../../domain/calc'
+import { fmt, fmtVolume } from '../../domain/calc'
 import { Smith } from '../../components/Smith'
+import { useSceneClass } from '../../components/scene'
 import { LevelBadge, XpBar } from '../../components/game'
 
 export function TodayPage() {
   const navigate = useNavigate()
+  const scene = useSceneClass()
   const today = toISODate()
   const weekday = new Date().getDay()
   const planDays = usePlanDays()
@@ -98,7 +100,7 @@ export function TodayPage() {
       {/* o ferreiro */}
       {gameData && (
         <Section className="mb-5">
-          <Link to="/forja" className="frame forge-bg flex items-end gap-3 overflow-hidden rounded-2xl pr-4 active:brightness-110">
+          <Link to="/forja" className={cx('frame flex items-end gap-3 overflow-hidden rounded-2xl pr-4 active:brightness-110', scene)}>
             <div className="-mb-1 shrink-0">
               <Smith tier={gameData.game.rank.tier} size={84} />
             </div>
@@ -261,12 +263,28 @@ export function TodayPage() {
                   <p className={cx('num text-[17px] leading-tight', q.done ? 'text-iron-400 line-through' : 'text-chalk')}>{q.title}</p>
                   <p className="text-xs text-iron-400">
                     {q.detail}
-                    {q.progress && !q.done && (
+                    {q.progress && !q.done && !q.boss && (
                       <span className="num ml-1 text-sm text-iron-300">
                         {q.progress[0]}/{q.progress[1]}
                       </span>
                     )}
                   </p>
+                  {/* chefe: barra de vida que cai com o volume da semana */}
+                  {q.boss && q.progress && !q.done && (
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <div
+                        className="h-2.5 flex-1 border border-iron-950 bg-iron-950"
+                        role="progressbar"
+                        aria-label="Vida do chefe"
+                        aria-valuenow={Math.round((1 - q.progress[0] / q.progress[1]) * 100)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
+                        <div className="h-full bg-danger" style={{ width: `${(1 - q.progress[0] / q.progress[1]) * 100}%` }} />
+                      </div>
+                      <span className="num shrink-0 text-xs text-iron-300">faltam {fmtVolume(q.progress[1] - q.progress[0])}</span>
+                    </div>
+                  )}
                 </div>
                 <span className={cx('num shrink-0 text-base', q.done ? 'text-iron-500' : 'text-xp')}>+{q.xp} XP</span>
               </li>

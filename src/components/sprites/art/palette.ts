@@ -48,6 +48,10 @@ export const BASE: Palette = {
   '2': '#b9c3cc',
   '3': '#7c8794',
   '4': '#4c5460',
+  // cabeça do martelo (troca de material)
+  x: '#f4f7f8',
+  z: '#b9c3cc',
+  a: '#7c8794',
   // madeira
   W: '#b8803f',
   X: '#7a4a1f',
@@ -114,7 +118,17 @@ export const HAIR_OPTIONS = [
   { id: 'branco', label: 'Branco' },
 ].map((o) => ({ ...o, color: HAIR_RAMPS[o.id][1] }))
 
-export function paletteFor(look: SmithLook): Palette {
+/** Material da cabeça do martelo: brilho, meio, sombra (índices x z a). Ids em src/domain/cosmetics.ts. */
+export const HAMMER_RAMPS: Record<string, string[]> = {
+  ferro: ['#f4f7f8', '#b9c3cc', '#7c8794'],
+  bronze: ['#ffd8a8', '#c98a4b', '#7f4b22'],
+  ouro: ['#fff3b8', '#f2c24c', '#a0701c'],
+  obsidiana: ['#a99bd1', '#4a3f6b', '#221c35'],
+  mitril: ['#effeff', '#8fe3f0', '#3a8fa3'],
+}
+
+export function paletteFor(look: SmithLook, hammer = 'ferro'): Palette {
+  const head = HAMMER_RAMPS[hammer] ?? HAMMER_RAMPS.ferro
   const skin = SKIN_RAMPS[look.skin] ?? SKIN_RAMPS.media
   const hair = HAIR_RAMPS[look.hair] ?? HAIR_RAMPS['castanho-escuro']
   const beard = HAIR_RAMPS[look.beard] ?? HAIR_RAMPS.preto
@@ -131,5 +145,8 @@ export function paletteFor(look: SmithLook): Palette {
     b: beard[0],
     c: beard[1],
     d: beard[2],
+    x: head[0],
+    z: head[1],
+    a: head[2],
   }
 }

@@ -101,6 +101,34 @@ describe('exercícios do dia', () => {
   })
 })
 
+describe('plano recebido por link', () => {
+  it('troca o plano, arquiva os dias antigos e traz exercícios criados por quem mandou', async () => {
+    // quem manda: plano com um exercício criado por ela
+    const day = await firstDay()
+    const exId = await edit.createExercise({ name: 'Remada cavalinho', muscleGroup: 'costas', equipment: 'Barra', isCompound: true })
+    await edit.addPlanExercise(day.id, exId)
+    await repo.updateProfile({ schedule: 'rotation' })
+    const shared = await edit.getSharedPlan()
+
+    // quem recebe: outro aparelho, outro modelo, com histórico
+    const other = new FitDB(`plan-recebe-${n}`)
+    repo.setDatabase(other)
+    await repo.setupNewUser({ templateId: 'corpo-inteiro-3x' })
+    const [oldDay] = await repo.getPlanDays()
+    const count = await edit.importSharedPlan(shared)
+
+    const days = await repo.getPlanDays()
+    expect(days.map((d) => d.name)).toEqual(shared.days.map((d) => d.name))
+    expect(count).toBe(shared.days.reduce((a, d) => a + d.items.length, 0))
+    expect((await repo.getAllPlanDays()).find((d) => d.id === oldDay.id)?.archived).toBe(true)
+    expect((await repo.getExercises()).some((e) => e.name === 'Remada cavalinho' && e.custom)).toBe(true)
+    expect((await repo.getProfile()).schedule).toBe('rotation')
+    expect((await repo.getProfile()).planCustomized).toBe(true)
+    await other.delete()
+    repo.setDatabase(db)
+  })
+})
+
 describe('planilha x plano editado', () => {
   it('plano editado não é sobrescrito por versão nova da planilha', async () => {
     const day = await firstDay()

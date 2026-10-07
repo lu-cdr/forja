@@ -3,6 +3,7 @@ import { Button, Empty, Icon, PageHeader, Section, Sheet, cx } from '../../compo
 import { SimpleLine } from '../../components/charts'
 import { useGame, useMeasurements } from '../../db/hooks'
 import { BodySheet } from './BodySheet'
+import { PhotosSection } from './PhotosSection'
 import { deleteMeasurement, saveMeasurement } from '../../db/repo'
 import { deltas, fmt } from '../../domain/calc'
 import { formatDateBR, toISODate } from '../../domain/dates'
@@ -54,11 +55,14 @@ export function MeasurementsPage() {
       />
 
       {list.length === 0 ? (
-        <Section>
-          <Empty title="Nenhuma medida ainda">
-            Comece pelo peso. Meça sempre do mesmo jeito: de manhã, em jejum, depois do banheiro.
-          </Empty>
-        </Section>
+        <>
+          <Section className="mb-6">
+            <Empty title="Nenhuma medida ainda">
+              Comece pelo peso. Meça sempre do mesmo jeito: de manhã, em jejum, depois do banheiro.
+            </Empty>
+          </Section>
+          <PhotosSection />
+        </>
       ) : (
         <>
           {current && (
@@ -123,6 +127,8 @@ export function MeasurementsPage() {
               </div>
             </Section>
           )}
+
+          <PhotosSection />
 
           <Section title="Linha do tempo">
             <ul className="space-y-2">

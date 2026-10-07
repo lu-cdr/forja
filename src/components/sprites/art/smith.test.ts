@@ -34,8 +34,8 @@ describe('ferreiro', () => {
     for (let t = 0; t <= 4; t++) {
       const up = drawSmith(t, shapes[0], { frame: 0 })
       const hit = drawSmith(t, shapes[0], { frame: 1 })
-      expect(up.rows.slice(0, 6).join('').includes('2'), `martelo no alto na patente ${t}`).toBe(true)
-      expect(hit.rows.slice(0, 6).join('').includes('2')).toBe(false)
+      expect(up.rows.slice(0, 6).join('').includes('z'), `martelo no alto na patente ${t}`).toBe(true)
+      expect(hit.rows.slice(0, 6).join('').includes('z')).toBe(false)
       expect(count(hit.rows, 'J') + count(hit.rows, 'R')).toBeGreaterThan(count(up.rows, 'J') + count(up.rows, 'R'))
     }
   })
@@ -72,5 +72,9 @@ describe('ferreiro', () => {
     expect(p.i).not.toBe(BASE.i)
     expect(p.c).not.toBe(BASE.c)
     expect(p.L).toBe(BASE.L) // couro não muda
+    // material do martelo troca só a cabeça (x z a), não o metal da armadura
+    const gold = paletteFor({ skin: 'media', hair: 'preto', beard: 'preto' }, 'ouro')
+    expect(gold.z).not.toBe(BASE.z)
+    expect(gold['2']).toBe(BASE['2'])
   })
 })

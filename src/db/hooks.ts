@@ -24,6 +24,7 @@ export const useExercises = () => useLiveQuery(() => repo.getExercises(), [])
 export const useAllPlanExercises = () => useLiveQuery(() => repo.getAllPlanExercises(), [])
 export const useLibraryExercises = () => useLiveQuery(() => getLibraryExercises(), [])
 export const useMeasurements = () => useLiveQuery(() => repo.getMeasurements(), [])
+export const usePhotos = () => useLiveQuery(() => repo.getPhotos(), [])
 export const useLastSets = (exerciseId: string, excludeSessionId?: string) =>
   useLiveQuery(() => repo.getLastSetsForExercise(exerciseId, excludeSessionId), [exerciseId, excludeSessionId])
 export const useExerciseSets = (exerciseId?: string) =>

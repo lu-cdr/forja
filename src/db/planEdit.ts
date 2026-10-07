@@ -1,4 +1,5 @@
 import { DEFAULT_TARGET, defaultRest, sequenceOrder } from '../domain/plan'
+import { planToShared, type SharedPlan } from '../domain/planShare'
 import type { Exercise, MuscleGroup, PlanDay, PlanExercise } from '../domain/types'
 import { CATALOG_IDS, DEFAULT_TEMPLATE_ID } from '../seed/plan'
 import { newId } from './db'
@@ -200,6 +201,68 @@ export async function getLibraryExercises(): Promise<Exercise[]> {
   const [all, items, sets] = await Promise.all([db.exercises.toArray(), db.planExercises.toArray(), db.sets.toArray()])
   const used = new Set([...items.map((i) => i.exerciseId), ...sets.map((s) => s.exerciseId)])
   return all.filter((e) => e.custom || used.has(e.id) || CATALOG_IDS.has(e.id))
+}
+
+// ---------- plano recebido por link ----------
+
+/**
+ * Troca o plano pelo recebido por link. Dias atuais ficam arquivados (histórico intacto); exercícios
+ * criados por quem mandou entram na biblioteca (ou reaproveitam um de mesmo nome); exercício de catálogo
+ * que este app não conhece é pulado. Devolve quantos exercícios entraram.
+ */
+export async function importSharedPlan(plan: SharedPlan): Promise<number> {
+  return tx(async () => {
+    const db = currentDb()
+    const all = await db.exercises.toArray()
+    const known = new Set(all.map((e) => e.id))
+    const bySlug = new Map(all.map((e) => [slug(e.name), e.id]))
+    const customIds: string[] = []
+    for (const c of plan.custom) {
+      let id = bySlug.get(slug(c.name))
+      if (!id) {
+        id = `ex-${slug(c.name)}`
+        if (known.has(id)) id = `ex-${newId()}`
+        await db.exercises.add({ id, ...c, custom: true })
+        known.add(id)
+        bySlug.set(slug(c.name), id)
+      }
+      customIds.push(id)
+    }
+    for (const d of await db.planDays.toArray()) if (!d.archived) await db.planDays.update(d.id, { archived: true })
+    let count = 0
+    for (const d of plan.days) {
+      const dayId = `day-${newId()}`
+      await db.planDays.add({ id: dayId, weekday: d.weekday, name: d.name })
+      let order = 0
+      for (const it of d.items) {
+        const exerciseId = typeof it.ex === 'number' ? customIds[it.ex] : it.ex
+        if (!exerciseId || !known.has(exerciseId)) continue
+        await db.planExercises.add({
+          id: `${dayId}-${newId()}`,
+          planDayId: dayId,
+          exerciseId,
+          order: ++order,
+          setsPhase1: it.setsPhase1,
+          setsPhase2: it.setsPhase2,
+          repMin: it.repMin,
+          repMax: it.repMax,
+          restSeconds: it.restSeconds,
+          ...(it.targetUnit && { targetUnit: it.targetUnit }),
+          ...(it.note && { note: it.note }),
+        })
+        count++
+      }
+    }
+    await db.profile.update('me', { schedule: plan.rotation ? 'rotation' : undefined })
+    return count
+  })
+}
+
+/** Plano ativo no formato compartilhável. */
+export async function getSharedPlan(): Promise<SharedPlan> {
+  const db = currentDb()
+  const [days, items, exercises, profile] = await Promise.all([db.planDays.toArray(), db.planExercises.toArray(), db.exercises.toArray(), db.profile.get('me')])
+  return planToShared(sequenceOrder(days.filter((d) => !d.archived)), items, exercises, CATALOG_IDS, profile?.schedule === 'rotation')
 }
 
 // ---------- restaurar / trocar modelo ----------

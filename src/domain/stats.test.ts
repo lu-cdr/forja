@@ -75,9 +75,22 @@ describe('estatísticas', () => {
   })
 
   it('sequência de semanas', () => {
-    expect(weekStreak(sessions, '2026-09-24')).toBe(2)
-    expect(weekStreak(sessions, '2026-09-30')).toBe(2) // semana atual vazia ainda conta a anterior
-    expect(weekStreak(sessions, '2026-10-08')).toBe(0)
+    expect(weekStreak(sessions, '2026-09-24').current).toBe(2)
+    expect(weekStreak(sessions, '2026-09-30').current).toBe(2) // semana atual vazia ainda conta a anterior
+    expect(weekStreak(sessions, '2026-10-08').current).toBe(0) // sem brasa guardada, a semana vazia quebra
+  })
+
+  it('brasa guardada: a cada 4 semanas seguidas, uma semana vazia não quebra a sequência', () => {
+    // 4 semanas seguidas (07/09 a 28/09), pula 05/10, volta em 12/10
+    const four = ['2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29'].map((d, i) => sess(`w${i}`, d))
+    expect(weekStreak(four, '2026-09-30')).toMatchObject({ current: 4, embers: 1 })
+    // semana de 05/10 terminou vazia: gasta a brasa, sequência fica
+    expect(weekStreak(four, '2026-10-13')).toMatchObject({ current: 4, embers: 0 })
+    const back = [...four, sess('w5', '2026-10-13')]
+    expect(weekStreak(back, '2026-10-13')).toMatchObject({ current: 5, best: 5, embers: 0, saved: 1 })
+    // duas semanas vazias com uma brasa só: recomeça
+    const gap2 = [...four, sess('w6', '2026-10-20')]
+    expect(weekStreak(gap2, '2026-10-20')).toMatchObject({ current: 1, best: 4 })
   })
 
   it('aderência', () => {

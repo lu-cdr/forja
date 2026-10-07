@@ -26,6 +26,7 @@ const ICONS: Record<AchievementIcon, string[]> = {
   scroll: ['wpppppw.', '.pkkkp..', '.pppppp.', '.pkkkkp.', '.pppppp.', '.pkkkp..', 'wpppppw.', '........'],
   shield: ['gggggggg', 'grrrrrrg', 'grryyrrg', 'grryyrrg', '.grrrrg.', '.grrrrg.', '..gggg..', '...gg...'],
   crown: ['........', 'y..y...y', 'yy.yy.yy', 'yyyyyyyy', 'yycyyryy', 'yyyyyyyy', 'YYYYYYYY', '........'],
+  dragon: ['......rr', '.....rry', 'r...rrr.', 'rr.rrrr.', '.rrrrro.', '..rrrr..', '.rr..rr.', 'rr....rr'],
 }
 
 export function PixelIcon({ name, size = 32, muted = false }: { name: AchievementIcon; size?: number; muted?: boolean }) {

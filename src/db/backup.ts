@@ -1,11 +1,13 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { freezePlanSnapshots } from './db'
 import { currentDb, updateProfile } from './repo'
+import type { ProgressPhoto } from '../domain/types'
 
 export const BACKUP_FORMAT = 'fitapp-backup'
-export const BACKUP_VERSION = 1
+/** v2: inclui fotos de progresso (como data URL). Backups v1 (sem fotos) continuam importando. */
+export const BACKUP_VERSION = 2
 
-const TABLES = ['profile', 'exercises', 'planDays', 'planExercises', 'sessions', 'sets', 'measurements'] as const
+const TABLES = ['profile', 'exercises', 'planDays', 'planExercises', 'sessions', 'sets', 'measurements', 'photos'] as const
 type TableName = (typeof TABLES)[number]
 
 export interface Backup {
@@ -20,6 +22,10 @@ export async function exportAll(): Promise<Backup> {
   const db = currentDb()
   const data = {} as Backup['data']
   for (const t of TABLES) data[t] = await db.table(t).toArray()
+  // fotos: o arquivo é JSON, então a imagem vai como data URL
+  data.photos = await Promise.all(
+    (data.photos as ProgressPhoto[]).map(async ({ blob, ...rest }) => ({ ...rest, data: await blobToDataUrl(blob) })),
+  )
   return { format: BACKUP_FORMAT, version: BACKUP_VERSION, exportedAt: new Date().toISOString(), data }
 }
 
@@ -42,6 +48,7 @@ export function parseBackup(json: string): Backup {
   if (b.version > BACKUP_VERSION) {
     throw new Error('Backup feito por uma versão mais nova do app.')
   }
+  if (b.version < 2 && b.data.photos === undefined) b.data.photos = [] // v1 não tinha fotos
   for (const t of TABLES) {
     if (!Array.isArray(b.data[t])) throw new Error(`Backup incompleto: falta "${t}".`)
   }
@@ -67,6 +74,8 @@ const RULES: Record<TableName, (r: Rec) => boolean> = {
   sessions: (r) => isStr(r.planDayId) && isDate(r.date) && isStr(r.startedAt),
   sets: (r) => isStr(r.sessionId) && isStr(r.exerciseId) && isNum(r.setNumber) && isNum(r.weightKg) && isNum(r.reps),
   measurements: (r) => isDate(r.date) && Object.entries(r).every(([k, v]) => !/(Kg|Cm|Pct)$/.test(k) || optNum(v)),
+  photos: (r) =>
+    isDate(r.date) && ['frente', 'lado', 'costas'].includes(r.angle as string) && typeof r.data === 'string' && r.data.startsWith('data:image/'),
 }
 
 /** Primeiro problema encontrado ("sets nº 12"), ou undefined se tudo estiver certo. */
@@ -114,7 +123,7 @@ function safetyDb(): SafetyDB {
  */
 export async function importAll(backup: Backup): Promise<void> {
   const current = await exportAll()
-  const hasData = current.data.sessions.length > 0 || current.data.measurements.length > 0
+  const hasData = current.data.sessions.length > 0 || current.data.measurements.length > 0 || current.data.photos.length > 0
   // sem treinos nem medidas não há o que proteger; uma cópia antiga deixaria de fazer sentido
   if (hasData) await safetyDb().snapshots.put({ id: 'pre-import', takenAt: current.exportedAt, backup: current })
   else await safetyDb().snapshots.delete('pre-import')
@@ -123,10 +132,18 @@ export async function importAll(backup: Backup): Promise<void> {
 
 async function replaceAll(backup: Backup): Promise<void> {
   const db = currentDb()
+  // fotos voltam de data URL para Blob antes da transação (ela não pode esperar outra coisa que não o banco)
+  const rows: Record<TableName, unknown[]> = {
+    ...backup.data,
+    photos: (backup.data.photos ?? []).map((p) => {
+      const { data, ...rest } = p as { data: string }
+      return { ...rest, blob: dataUrlToBlob(data) }
+    }),
+  }
   await db.transaction('rw', TABLES.map((t) => db.table(t)), async () => {
     for (const t of TABLES) {
       await db.table(t).clear()
-      await db.table(t).bulkAdd(backup.data[t])
+      await db.table(t).bulkAdd(rows[t])
     }
     // backups antigos não têm o retrato do plano nas sessões
     await freezePlanSnapshots(db.table('sessions'), db.table('planExercises'), db.table('planDays'), db.table('profile'))
@@ -145,6 +162,30 @@ export async function undoImport(): Promise<boolean> {
   await replaceAll(snap.backup)
   await safetyDb().snapshots.delete('pre-import')
   return true
+}
+
+// ---------- fotos no JSON ----------
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  let bin = ''
+  // em blocos: String.fromCharCode com milhões de argumentos estoura a pilha
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return `data:${blob.type || 'image/jpeg'};base64,${btoa(bin)}`
+}
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [head, b64] = dataUrl.split(',')
+  const type = /^data:([^;]+)/.exec(head)?.[1] ?? 'image/jpeg'
+  const bin = atob(b64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return new Blob([bytes], { type })
+}
+
+/** Tamanho aproximado das fotos no backup (para avisar). */
+export async function photosBackupBytes(): Promise<number> {
+  return (await currentDb().photos.toArray()).reduce((a, p) => a + Math.ceil((p.blob.size * 4) / 3), 0)
 }
 
 export function backupFileName(date = new Date()): string {

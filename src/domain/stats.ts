@@ -100,18 +100,66 @@ export function personalRecords(sessions: WorkoutSession[], sets: SetLog[]): Per
   return [...map.values()]
 }
 
-/** Semanas consecutivas (terminando na atual ou na anterior) com pelo menos 1 treino. */
-export function weekStreak(sessions: WorkoutSession[], today: string): number {
-  const weeks = new Set(sessions.map((s) => startOfWeek(s.date)))
-  const cursor = fromISODate(startOfWeek(today))
-  // semana atual ainda em andamento: se vazia, conta a partir da anterior
-  if (!weeks.has(toISODate(cursor))) cursor.setDate(cursor.getDate() - 7)
-  let n = 0
-  while (weeks.has(toISODate(cursor))) {
-    n++
-    cursor.setDate(cursor.getDate() - 7)
+// ---------- sequência de semanas com "brasas guardadas" ----------
+
+/** A cada 4 semanas seguidas a forja guarda uma brasa (até 2); cada brasa cobre uma semana sem treino. */
+export const EMBER_EVERY_WEEKS = 4
+export const EMBER_MAX = 2
+
+const weeksBetween = (a: string, b: string) => Math.round((fromISODate(b).getTime() - fromISODate(a).getTime()) / (7 * 86_400_000))
+
+export interface StreakState {
+  current: number
+  best: number
+  /** Brasas guardadas agora. */
+  embers: number
+  /** Semanas sem treino que foram salvas por brasas (no histórico todo). */
+  saved: number
+}
+
+/**
+ * Sequência de semanas com treino, alimentada em ordem (segunda-feira de cada semana com treino).
+ * Semana vazia: gasta uma brasa e a sequência continua (a semana vazia não conta); sem brasa, recomeça.
+ */
+export function streakTracker() {
+  const s: StreakState = { current: 0, best: 0, embers: 0, saved: 0 }
+  let last: string | undefined
+  return {
+    /** Registra uma semana com treino (ignora repetidas). */
+    add(week: string) {
+      if (week === last) return
+      const missed = last === undefined ? 0 : weeksBetween(last, week) - 1
+      if (last === undefined || missed > s.embers) {
+        s.current = 1
+      } else {
+        s.embers -= missed
+        s.saved += missed
+        s.current++
+      }
+      last = week
+      if (s.current % EMBER_EVERY_WEEKS === 0) s.embers = Math.min(EMBER_MAX, s.embers + 1)
+      s.best = Math.max(s.best, s.current)
+    },
+    get: (): StreakState => ({ ...s }),
+    /**
+     * Como está hoje: semanas já encerradas sem treino depois da última gastam brasas; a semana atual,
+     * em andamento, ainda não conta contra.
+     */
+    asOf(today: string): StreakState {
+      if (last === undefined) return { ...s }
+      const missed = weeksBetween(last, startOfWeek(today)) - 1
+      if (missed <= 0) return { ...s }
+      if (missed > s.embers) return { ...s, current: 0 }
+      return { ...s, embers: s.embers - missed }
+    },
   }
-  return n
+}
+
+/** Semanas consecutivas com treino até hoje, contando as brasas guardadas. */
+export function weekStreak(sessions: WorkoutSession[], today: string): StreakState {
+  const t = streakTracker()
+  for (const w of [...new Set(sessions.map((s) => startOfWeek(s.date)))].sort()) t.add(w)
+  return t.asOf(today)
 }
 
 /** Aderência = treinos feitos ÷ planejados, nas últimas N semanas completas + a atual. */

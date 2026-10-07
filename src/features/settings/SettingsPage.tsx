@@ -10,11 +10,13 @@ import {
   importAll,
   markExported,
   parseBackup,
+  photosBackupBytes,
   preImportSnapshotDate,
   undoImport,
 } from '../../db/backup'
 import { clearHistory, loadSampleData } from '../../db/sample'
 import { formatDateBR } from '../../domain/dates'
+import { fmt } from '../../domain/calc'
 import { playCoin, setSfxEnabled, sfxEnabled } from '../../components/sfx'
 import { InstallGuide } from '../../components/InstallGuide'
 import { ACTIVITY_LEVELS, TRAINING_LEVELS, ageFromBirthYear } from '../../domain/recommend'
@@ -29,10 +31,12 @@ export function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [sfx, setSfx] = useState(sfxEnabled)
   const [undoFrom, setUndoFrom] = useState<string>()
+  const [photoBytes, setPhotoBytes] = useState(0)
 
   useEffect(() => {
     void isStoragePersisted().then(setPersisted)
     void preImportSnapshotDate().then(setUndoFrom)
+    void photosBackupBytes().then(setPhotoBytes)
   }, [])
 
   if (!profile || !sessions || !measurements) return null
@@ -116,6 +120,11 @@ export function SettingsPage() {
           <p className="mt-2 text-sm text-iron-400">
             {since === undefined ? 'Nenhum backup feito ainda.' : since === 0 ? 'Último backup: hoje.' : `Último backup: há ${since} ${since === 1 ? 'dia' : 'dias'}.`}
           </p>
+          {photoBytes > 0 && (
+            <p className="mt-1 text-xs text-iron-400">
+              O backup inclui as fotos de progresso (cerca de {fmt(photoBytes / 1_048_576, 1)} MB).
+            </p>
+          )}
           <div className="mt-4 grid grid-cols-2 gap-2">
             <Button variant="primary" onClick={onExport}>
               <Icon name="download" className="size-4" /> Exportar

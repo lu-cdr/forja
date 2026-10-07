@@ -100,9 +100,38 @@ describe('retrato do plano', () => {
 
     const db = new FitDB(name)
     await db.open()
-    expect(db.verno).toBe(2)
+    expect(db.verno).toBe(3)
     const s = await db.sessions.get('s1')
     expect(s).toMatchObject({ plannedSets: 5, plannedDaysPerWeek: 2 }) // semana 1 → fase 1: 3 + 2
+    db.close()
+  })
+
+  it('migração v2 → v3 cria a tabela de fotos sem tocar nos dados', async () => {
+    const name = `snap-mig3-${++n}`
+    toDelete.push(name)
+    const schema = {
+      profile: 'id',
+      exercises: 'id, muscleGroup',
+      planDays: 'id, weekday',
+      planExercises: 'id, planDayId, exerciseId',
+      sessions: 'id, planDayId, date, startedAt, finishedAt',
+      sets: 'id, sessionId, exerciseId, [sessionId+exerciseId]',
+      measurements: 'id, date',
+    }
+    const v2 = new Dexie(name)
+    v2.version(1).stores(schema)
+    v2.version(2).stores(schema)
+    await v2.table('profile').add({ id: 'me', planStartDate: '2026-10-03' })
+    await v2.table('sessions').add({ id: 's1', planDayId: 'd', date: '2026-10-06', startedAt: '2026-10-06T18:00:00Z', finishedAt: '2026-10-06T19:00:00Z', plannedSets: 3, plannedDaysPerWeek: 2 })
+    await v2.table('measurements').add({ id: 'm1', date: '2026-10-06', weightKg: 80 })
+    v2.close()
+
+    const db = new FitDB(name)
+    await db.open()
+    expect(db.verno).toBe(3)
+    expect(await db.sessions.get('s1')).toMatchObject({ plannedSets: 3, plannedDaysPerWeek: 2 })
+    expect(await db.measurements.get('m1')).toMatchObject({ weightKg: 80 })
+    expect(await db.photos.count()).toBe(0)
     db.close()
   })
 

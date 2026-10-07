@@ -1,5 +1,6 @@
-import { beatsRecord, bestScores, mergeBest, setVolume, type BestScores } from './calc'
+import { beatsRecord, bestScores, fmtVolume, mergeBest, setVolume, type BestScores } from './calc'
 import { fromISODate, planWeek, startOfWeek, toISODate } from './dates'
+import { streakTracker } from './stats'
 import { plannedSetsFor } from './plan'
 import type { SetLog, WorkoutSession } from './types'
 
@@ -19,7 +20,48 @@ export const XP = {
   loadUp: 25, // carga máxima maior que na última vez
   fullWeek: 250, // todos os treinos planejados da semana
   measurement: 25, // dia com medição registrada
+  boss: 200, // chefe da semana derrotado (volume da semana acima da meta)
 } as const
+
+// ---------- chefe da semana ----------
+
+const BOSSES = ['Dragão de Ferro', 'Troll da Ponte', 'Golem de Pedra', 'Serpente das Minas', 'Ogro da Taverna', 'Cavaleiro Negro']
+
+export interface Boss {
+  week: string
+  name: string
+  /** Volume (kg) da semana para derrotar: 10% acima da média das semanas com treino entre as 4 anteriores. */
+  target: number
+}
+
+/**
+ * Chefe de uma semana, a partir do volume das semanas anteriores (precisa de pelo menos 2 semanas
+ * com treino entre as 4 anteriores). O nome gira semana a semana.
+ */
+export function bossFor(week: string, weeklyVolume: Map<string, number>): Boss | undefined {
+  const prev: number[] = []
+  const d = fromISODate(week)
+  for (let i = 1; i <= 4; i++) {
+    d.setDate(d.getDate() - 7)
+    const v = weeklyVolume.get(toISODate(d)) ?? 0
+    if (v > 0) prev.push(v)
+  }
+  if (prev.length < 2) return undefined
+  const avg = prev.reduce((a, b) => a + b, 0) / prev.length
+  const index = Math.round(fromISODate(week).getTime() / (7 * 86_400_000))
+  return { week, name: BOSSES[((index % BOSSES.length) + BOSSES.length) % BOSSES.length], target: Math.ceil((avg * 1.1) / 100) * 100 }
+}
+
+/** Volume por semana (segunda-feira), sem aquecimento. */
+function weeklyVolumeOf(sessions: WorkoutSession[], sets: SetLog[]): Map<string, number> {
+  const weekOf = new Map(sessions.filter((s) => s.finishedAt).map((s) => [s.id, startOfWeek(s.date)]))
+  const out = new Map<string, number>()
+  for (const s of sets) {
+    const w = weekOf.get(s.sessionId)
+    if (w && !s.isWarmup) out.set(w, (out.get(w) ?? 0) + setVolume(s))
+  }
+  return out
+}
 
 export type XpKind = keyof typeof XP | 'achievement'
 
@@ -77,9 +119,11 @@ export interface RunningStats {
   measurementDays: number
   reachedPhase2: boolean
   totalSets: number
+  /** Chefes da semana derrotados. */
+  bosses: number
 }
 
-export type AchievementIcon = 'spark' | 'anvil' | 'hammer' | 'flame' | 'trophy' | 'weight' | 'scroll' | 'shield' | 'crown'
+export type AchievementIcon = 'spark' | 'anvil' | 'hammer' | 'flame' | 'trophy' | 'weight' | 'scroll' | 'shield' | 'crown' | 'dragon'
 
 export interface AchievementDef {
   id: string
@@ -128,6 +172,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   ach('mil-toneladas', 'Mil toneladas', 'Levante 1.000 t somando todos os treinos.', 'crown', 1500, (s) => s.totalVolume / 1000, 1000),
   ach('espelho-do-ferreiro', 'Espelho do ferreiro', 'Registre medidas em 4 dias diferentes.', 'scroll', 100, (s) => s.measurementDays, 4),
   ach('cronista', 'Cronista', 'Registre medidas em 12 dias diferentes.', 'scroll', 250, (s) => s.measurementDays, 12),
+  ach('cacador-de-chefes', 'Caçador de chefes', 'Derrote o chefe de uma semana.', 'dragon', 100, (s) => s.bosses, 1),
+  ach('terror-das-masmorras', 'Terror das masmorras', 'Derrote 10 chefes da semana.', 'dragon', 500, (s) => s.bosses, 10),
 ]
 
 // ---------- atributos ----------
@@ -193,13 +239,8 @@ const emptyStats = (): RunningStats => ({
   measurementDays: 0,
   reachedPhase2: false,
   totalSets: 0,
+  bosses: 0,
 })
-
-const prevWeek = (week: string) => {
-  const d = fromISODate(week)
-  d.setDate(d.getDate() - 7)
-  return toISODate(d)
-}
 
 export function computeGame(input: GameInput): GameState {
   const events: XpEvent[] = []
@@ -225,8 +266,10 @@ export function computeGame(input: GameInput): GameState {
   const bestByExercise = new Map<string, BestScores>()
   const lastTop = new Map<string, number>()
   const weekDays = new Map<string, Set<string>>()
-  const weeksWithWorkout = new Set<string>()
+  const streak = streakTracker()
   const fullWeeksAwarded = new Set<string>()
+  const weekVolume = new Map<string, number>()
+  const bossesDefeated = new Set<string>()
 
   const checkAchievements = (date: string) => {
     for (const def of ACHIEVEMENTS) {
@@ -280,12 +323,21 @@ export function computeGame(input: GameInput): GameState {
     if (ups) ev('loadUp', ups * XP.loadUp, `Carga subiu em ${ups} ${ups === 1 ? 'exercício' : 'exercícios'}`)
     stats.prs += prs
 
-    // semanas
+    // semanas (sequência com brasas guardadas: uma semana vazia não quebra se houver brasa)
     const wk = startOfWeek(sess.date)
-    if (!weeksWithWorkout.has(wk)) {
-      weeksWithWorkout.add(wk)
-      stats.currentStreakWeeks = weeksWithWorkout.has(prevWeek(wk)) ? stats.currentStreakWeeks + 1 : 1
-      stats.bestStreakWeeks = Math.max(stats.bestStreakWeeks, stats.currentStreakWeeks)
+    streak.add(wk)
+    stats.currentStreakWeeks = streak.get().current
+    stats.bestStreakWeeks = streak.get().best
+
+    // chefe da semana: o volume da semana passou da meta (calculada só com as semanas anteriores)
+    weekVolume.set(wk, (weekVolume.get(wk) ?? 0) + sets.reduce((a, s) => a + setVolume(s), 0))
+    if (!bossesDefeated.has(wk)) {
+      const boss = bossFor(wk, weekVolume)
+      if (boss && weekVolume.get(wk)! >= boss.target) {
+        bossesDefeated.add(wk)
+        stats.bosses++
+        ev('boss', XP.boss, `Chefe derrotado: ${boss.name}`)
+      }
     }
     const days = weekDays.get(wk) ?? new Set<string>()
     days.add(sess.date)
@@ -312,6 +364,15 @@ export function computeGame(input: GameInput): GameState {
     attributes: attributesFrom(stats),
     events,
     unlocked,
+  }
+}
+
+/** Treinos e volume (kg, sem aquecimento) da semana de `today`. */
+export function weekSummary(input: Pick<GameInput, 'sessions' | 'sets'>, today: string): { workouts: number; volume: number } {
+  const week = startOfWeek(today)
+  return {
+    workouts: input.sessions.filter((s) => s.finishedAt && startOfWeek(s.date) === week).length,
+    volume: weeklyVolumeOf(input.sessions, input.sets).get(week) ?? 0,
   }
 }
 
@@ -347,6 +408,8 @@ export interface Quest {
   xp: number
   done: boolean
   progress?: [number, number]
+  /** Chefe da semana: o progresso é volume (kg) e aparece como barra de vida. */
+  boss?: boolean
 }
 
 /**
@@ -379,6 +442,20 @@ export function questsFor(input: GameInput, today: string, planWeekdays: number[
     done: sessionsThisWeek.size >= input.plannedDaysPerWeek,
     progress: [Math.min(sessionsThisWeek.size, input.plannedDaysPerWeek), input.plannedDaysPerWeek],
   })
+  const volumes = weeklyVolumeOf(input.sessions, input.sets)
+  const boss = bossFor(week, volumes)
+  if (boss) {
+    const done = volumes.get(week) ?? 0
+    quests.push({
+      id: 'boss',
+      title: `Derrotar o ${boss.name}`,
+      detail: `Chefe da semana: levante ${fmtVolume(boss.target)} somando os treinos até domingo.`,
+      xp: XP.boss,
+      done: done >= boss.target,
+      progress: [Math.min(done, boss.target), boss.target],
+      boss: true,
+    })
+  }
   quests.push({
     id: 'measure',
     title: 'Olhar no espelho',

@@ -6,6 +6,7 @@ import type {
   PlanDay,
   PlanExercise,
   Profile,
+  ProgressPhoto,
   SetLog,
   WorkoutSession,
 } from '../domain/types'
@@ -18,6 +19,7 @@ export class FitDB extends Dexie {
   sessions!: EntityTable<WorkoutSession, 'id'>
   sets!: EntityTable<SetLog, 'id'>
   measurements!: EntityTable<BodyMeasurement, 'id'>
+  photos!: EntityTable<ProgressPhoto, 'id'>
 
   constructor(name = 'fitapp') {
     super(name)
@@ -39,6 +41,8 @@ export class FitDB extends Dexie {
       .upgrade((tx) =>
         freezePlanSnapshots(tx.table('sessions'), tx.table('planExercises'), tx.table('planDays'), tx.table('profile')),
       )
+    // v3: fotos de progresso (tabela nova; nada muda nas outras)
+    this.version(3).stores({ ...schemaV1, photos: 'id, date' })
   }
 }
 

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Icon, PageHeader, Section, Segmented, Sheet, Stepper } from '../../components/ui'
 import { usePlanDays, usePlanItems, useProfile } from '../../db/hooks'
-import { addPlanDay, moveDayInSequence, resetPlanToTemplate, switchTemplate } from '../../db/planEdit'
+import { addPlanDay, getSharedPlan, moveDayInSequence, resetPlanToTemplate, switchTemplate } from '../../db/planEdit'
+import { encodePlan } from '../../domain/planShare'
 import { updateProfile } from '../../db/repo'
 import { getTemplate } from '../../seed/plan'
 import { TemplateList } from '../../components/TemplateList'
@@ -17,6 +18,7 @@ export function PlanPage() {
   const [error, setError] = useState<string>()
   const [switching, setSwitching] = useState(false)
   const [picked, setPicked] = useState<string>()
+  const [shareMsg, setShareMsg] = useState<string>()
   if (!days || !profile) return null
   const week = planWeek(profile.planStartDate, toISODate())
   const phase = planPhase(week, profile.rampUpWeeks)
@@ -34,6 +36,26 @@ export function PlanPage() {
   }
 
   const template = getTemplate(profile.planTemplate)
+
+  async function onSharePlan() {
+    setShareMsg(undefined)
+    try {
+      const code = await encodePlan(await getSharedPlan())
+      const url = `${location.origin}${location.pathname}#/plano/importar?p=${code}`
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'Plano de treino na Forja', text: 'Meu plano de treino na Forja. Abra o link para usar:', url })
+          return
+        } catch (e) {
+          if ((e as Error).name === 'AbortError') return
+        }
+      }
+      await navigator.clipboard.writeText(url)
+      setShareMsg('Link copiado. Cole na conversa com quem vai usar.')
+    } catch (e) {
+      setShareMsg(e instanceof Error ? e.message : 'Não foi possível gerar o link.')
+    }
+  }
 
   async function onReset() {
     if (!window.confirm(`Voltar ao modelo "${template.name}"? Suas edições no plano se perdem; treinos e medidas continuam.`)) return
@@ -107,6 +129,12 @@ export function PlanPage() {
               Desfazer edições
             </Button>
           </div>
+          {days.length > 0 && (
+            <Button className="mt-2 w-full text-sm" onClick={onSharePlan}>
+              <Icon name="upload" className="size-4" /> Compartilhar plano por link
+            </Button>
+          )}
+          {shareMsg && <p className="mt-2 text-xs text-iron-300">{shareMsg}</p>}
         </div>
       </Section>
 

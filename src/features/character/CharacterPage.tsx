@@ -1,14 +1,18 @@
 import { Link } from 'react-router-dom'
 import { Smith } from '../../components/Smith'
+import { useSceneClass } from '../../components/scene'
 import { AttributeRow, LevelBadge, PixelIcon, XpBar } from '../../components/game'
 import { Button, Icon, PageHeader, Section, Sheet, Stat, cx } from '../../components/ui'
 import { SmithCustomizer } from '../../components/SmithCustomizer'
+import { CosmeticPicker } from '../../components/CosmeticPicker'
+import { ShareSmithButton } from '../../components/ShareSmithButton'
 import { DEFAULT_LOOK } from '../../components/sprites/art/palette'
 import { updateProfile } from '../../db/repo'
 import { useState } from 'react'
 import { useGame, useProfile } from '../../db/hooks'
 import { fmt } from '../../domain/calc'
-import { formatDateBR } from '../../domain/dates'
+import { formatDateBR, toISODate } from '../../domain/dates'
+import { EMBER_EVERY_WEEKS, EMBER_MAX, weekStreak } from '../../domain/stats'
 import { ACHIEVEMENTS, RANKS, XP, levelProgress } from '../../domain/game'
 
 const XP_RULES: [string, number][] = [
@@ -19,18 +23,21 @@ const XP_RULES: [string, number][] = [
   ['Subir a carga (por exercício)', XP.loadUp],
   ['Fazer todos os treinos da semana', XP.fullWeek],
   ['Registrar medidas (por dia)', XP.measurement],
+  ['Derrotar o chefe da semana', XP.boss],
 ]
 
 export function CharacterPage() {
   const data = useGame()
   const profile = useProfile()
   const [customizing, setCustomizing] = useState(false)
+  const scene = useSceneClass()
   if (!data || !profile) return null
   const { game } = data
   const { stats } = game
   const unlockedIds = new Map(game.unlocked.map((u) => [u.def.id, u.date]))
   const toNext = game.nextLevelXp - game.totalXp
   const recent = [...game.events].reverse().slice(0, 12)
+  const streak = weekStreak(data.input.sessions, toISODate())
 
   return (
     <div>
@@ -45,7 +52,7 @@ export function CharacterPage() {
       />
 
       <Section className="mb-6">
-        <div className="frame forge-bg overflow-hidden rounded-2xl">
+        <div className={cx('frame overflow-hidden rounded-2xl', scene)}>
           <div className="flex justify-center px-2 pt-4">
             <Smith tier={game.rank.tier} size={224} label={`Ferreiro, patente ${game.rank.title}`} />
           </div>
@@ -65,6 +72,7 @@ export function CharacterPage() {
             <Button className="mt-3 w-full" onClick={() => setCustomizing(true)}>
               <Icon name="edit" className="size-4" /> Personalizar ferreiro
             </Button>
+            <ShareSmithButton className="mt-2" />
           </div>
         </div>
       </Section>
@@ -74,6 +82,32 @@ export function CharacterPage() {
           <Stat label="treinos forjados" value={stats.workouts} />
           <Stat label="recordes" value={stats.prs} />
           <Stat label="toneladas" value={fmt(stats.totalVolume / 1000, 1)} />
+        </div>
+      </Section>
+
+      <Section className="mb-6" title="Sequência">
+        <div className="frame flex items-center gap-4 rounded-2xl bg-iron-850 p-4">
+          <div className="shrink-0 text-center">
+            <div className="num text-[34px] leading-none text-rubber">{streak.current}</div>
+            <div className="mt-1 text-[11px] text-iron-400">{streak.current === 1 ? 'semana' : 'semanas'}</div>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5" aria-label={`Brasas guardadas: ${streak.embers} de ${EMBER_MAX}`}>
+              {Array.from({ length: EMBER_MAX }, (_, i) => (
+                <span key={i} className={cx(i < streak.embers ? 'text-rubber' : 'text-iron-700')}>
+                  <Icon name="flame" className="size-6" />
+                </span>
+              ))}
+              <span className="num ml-1 text-base text-chalk">
+                {streak.embers}/{EMBER_MAX}
+              </span>
+              <span className="text-xs text-iron-400">brasas guardadas</span>
+            </div>
+            <p className="mt-1 text-xs leading-snug text-iron-400">
+              A cada {EMBER_EVERY_WEEKS} semanas seguidas a forja guarda uma brasa. Se uma semana passar sem treino, a brasa mantém a
+              sequência acesa.
+            </p>
+          </div>
         </div>
       </Section>
 
@@ -179,6 +213,12 @@ export function CharacterPage() {
 
       <Sheet open={customizing} onClose={() => setCustomizing(false)} title="Personalizar ferreiro">
         <SmithCustomizer value={profile.smith ?? DEFAULT_LOOK} onChange={(smith) => void updateProfile({ smith })} />
+        <h3 className="mt-6 mb-2 font-display text-xl font-bold">Forja e martelo</h3>
+        <CosmeticPicker
+          unlocked={new Set(game.unlocked.map((u) => u.def.id))}
+          value={profile.cosmetics ?? {}}
+          onChange={(cosmetics) => void updateProfile({ cosmetics })}
+        />
         <Button variant="primary" className="mt-5 w-full" onClick={() => setCustomizing(false)}>
           Pronto
         </Button>

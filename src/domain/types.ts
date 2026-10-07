@@ -57,6 +57,8 @@ export interface Profile {
   rotationDaysPerWeek?: number
   /** Perguntar o esforço (RPE) depois de cada série. */
   askRpe?: boolean
+  /** Visuais escolhidos (ids de src/domain/cosmetics.ts); destravados por conquista. */
+  cosmetics?: { scene?: string; hammer?: string }
 }
 
 export type Schedule = 'weekly' | 'rotation'
@@ -169,6 +171,24 @@ export const MEASUREMENT_LABEL: Record<MeasurementField | 'weightKg' | 'bodyFatP
   thighRCm: 'Coxa D',
   thighLCm: 'Coxa E',
   calfCm: 'Panturrilha',
+}
+
+export type PhotoAngle = 'frente' | 'lado' | 'costas'
+export const PHOTO_ANGLES: { id: PhotoAngle; label: string }[] = [
+  { id: 'frente', label: 'Frente' },
+  { id: 'lado', label: 'Lado' },
+  { id: 'costas', label: 'Costas' },
+]
+
+/** Foto de progresso, guardada só no aparelho (JPEG reduzido). */
+export interface ProgressPhoto {
+  id: string
+  /** YYYY-MM-DD */
+  date: string
+  angle: PhotoAngle
+  blob: Blob
+  width: number
+  height: number
 }
 
 export type BodyMeasurement = {

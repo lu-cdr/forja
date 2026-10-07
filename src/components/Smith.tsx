@@ -20,6 +20,7 @@ export const Smith = memo(function Smith({
   label,
   look,
   stance = 'forja',
+  hammer,
 }: {
   tier: number
   size?: number
@@ -28,13 +29,16 @@ export const Smith = memo(function Smith({
   label?: string
   look?: SmithLook
   stance?: Stance
+  /** Material do martelo (prévia); padrão: o escolhido no perfil. */
+  hammer?: string
 }) {
   const profile = useProfile()
   const l = look ?? profile?.smith ?? DEFAULT_LOOK
+  const head = hammer ?? profile?.cosmetics?.hammer
   const { w, h, frames } = useMemo(
     () => {
       const shape = { bald: l.hair === BALD, beardless: l.beard === NO_BEARD, orc: l.skin === 'orc' }
-      const pal = paletteFor(l)
+      const pal = paletteFor(l, head)
       // quadros: 0 martelo erguido · 1 martelada (ordem da animação no CSS)
       const sprites =
         stance === 'forja'
@@ -43,7 +47,7 @@ export const Smith = memo(function Smith({
       return { w: sprites[0].w, h: sprites[0].h, frames: sprites.map((f) => toRuns(f, pal)) }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tier, l.skin, l.hair, l.beard, stance],
+    [tier, l.skin, l.hair, l.beard, stance, head],
   )
   const moving = animate && stance === 'forja'
   return (

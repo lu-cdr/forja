@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Smith } from '../../components/Smith'
+import { useSceneClass } from '../../components/scene'
+import { ShareSmithButton } from '../../components/ShareSmithButton'
 import { LevelBadge, PixelIcon, XpBar } from '../../components/game'
 import { playAnvil, playLevelUp, playTick } from '../../components/sfx'
 import { Button, cx } from '../../components/ui'
 import { useGameInput } from '../../db/hooks'
 import { fmt } from '../../domain/calc'
 import { levelProgress, rewardForSession } from '../../domain/game'
+import { cosmeticsFor } from '../../domain/cosmetics'
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 export function RewardPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const scene = useSceneClass()
   const input = useGameInput()
   const reward = useMemo(() => {
     if (!input || !id || !input.sessions.some((s) => s.id === id)) return null
@@ -87,7 +91,7 @@ export function RewardPage() {
         +{fmt(shown, 0)} <span className="text-3xl">XP</span>
       </p>
 
-      <div className="frame forge-bg relative mt-5 overflow-hidden rounded-2xl">
+      <div className={cx('frame relative mt-5 overflow-hidden rounded-2xl', scene)}>
         <div className="flex justify-center pt-3">
           <Smith key={tier} tier={tier} size={180} className={evolved ? 'anim-level-pop' : undefined} />
         </div>
@@ -142,6 +146,11 @@ export function RewardPage() {
                 <div>
                   <p className="num text-lg leading-tight">{a.def.name}</p>
                   <p className="text-xs text-iron-400">{a.def.description}</p>
+                  {cosmeticsFor(a.def.id).map((c) => (
+                    <p key={c.id} className="mt-0.5 text-xs text-xp">
+                      Destravou {c.kind === 'scene' ? 'o cenário' : 'o martelo de'} {c.name}
+                    </p>
+                  ))}
                 </div>
               </li>
             ))}
@@ -149,7 +158,8 @@ export function RewardPage() {
         </section>
       )}
 
-      <div className="mt-6 grid grid-cols-2 gap-2">
+      <ShareSmithButton className="mt-6" />
+      <div className="mt-2 grid grid-cols-2 gap-2">
         <Button onClick={() => navigate('/forja', { replace: true })}>Ver ferreiro</Button>
         <Button variant="primary" onClick={() => navigate(`/historico/${id}`, { replace: true })}>
           Continuar

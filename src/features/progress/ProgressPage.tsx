@@ -48,7 +48,7 @@ export function ProgressPage() {
 
   const vol = weeklyVolume(inPeriod, sets)
   const thisWeek = muscleVolumeForWeek(startOfWeek(today), sessions, sets, exercises)
-  const streak = weekStreak(sessions, today)
+  const streak = weekStreak(sessions, today).current
   const adh = adherence(sessions, daysPerWeek(profile, planDays.length), today, 4)
   const lastWeight = weightData.at(-1)
   const firstWeight = weightData[0]
