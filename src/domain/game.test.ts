@@ -81,6 +81,24 @@ describe('XP', () => {
     expect(g.stats.prs).toBe(1)
   })
 
+  it('peso do corpo e prancha batem recorde por repetições/segundos; carga e peso do corpo não se misturam', () => {
+    const g = computeGame(
+      base({
+        sessions: [sess('a', '2026-10-06'), sess('b', '2026-10-13'), sess('c', '2026-10-20')],
+        sets: [
+          set('a', 'barra', 0, 8),
+          set('a', 'prancha', 0, 40),
+          set('b', 'barra', 0, 10), // recorde: mais repetições
+          set('b', 'prancha', 0, 45), // recorde: mais segundos
+          set('c', 'barra', 10, 5), // primeira vez com colete: ainda não é recorde
+        ],
+      }),
+    )
+    expect(g.events.find((e) => e.sessionId === 'b' && e.kind === 'pr')?.xp).toBe(2 * XP.pr)
+    expect(g.events.some((e) => e.sessionId === 'c' && e.kind === 'pr')).toBe(false)
+    expect(g.stats.prs).toBe(2)
+  })
+
   it('semana completa e sequência de semanas', () => {
     const g = computeGame(
       base({
@@ -162,6 +180,13 @@ describe('missões', () => {
     const sun = questsFor(base(), '2026-10-04', [2, 3])
     expect(sun.map((q) => q.id)).toEqual(['week', 'measure'])
   })
+  it('em sequência, a missão do dia aparece até fechar a semana', () => {
+    const two = [sess('a', '2026-10-06'), sess('b', '2026-10-07')]
+    expect(questsFor(base(), '2026-10-04', [], true).map((q) => q.id)).toContain('today') // domingo também vale
+    expect(questsFor(base({ sessions: two }), '2026-10-09', [], true).map((q) => q.id)).not.toContain('today') // 2 de 2
+    expect(questsFor(base({ sessions: two }), '2026-10-07', [], true).find((q) => q.id === 'today')?.done).toBe(true)
+  })
+
   it('progresso semanal', () => {
     const q = questsFor(base({ sessions: [sess('a', '2026-10-06')] }), '2026-10-08', [2, 3]).find((x) => x.id === 'week')!
     expect(q.progress).toEqual([1, 2])

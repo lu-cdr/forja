@@ -1,4 +1,4 @@
-import type { Exercise, PlanDay, PlanExercise } from '../domain/types'
+import { BODYWEIGHT_EQUIPMENT, type Exercise, type PlanDay, type PlanExercise } from '../domain/types'
 import * as gen from './plan.generated'
 
 /**
@@ -7,7 +7,18 @@ import * as gen from './plan.generated'
  * continuam valendo se a pessoa trocar de modelo.
  */
 
-export const CATALOG: Exercise[] = gen.exercises
+/**
+ * Exercícios com peso do corpo que a planilha não tem (entram no catálogo de quem já usa também).
+ * Ids iguais aos que `createExercise` geraria pelo nome: quem já criou um igual não fica com dois.
+ */
+const BODYWEIGHT: Exercise[] = [
+  { id: 'ex-barra-fixa', name: 'Barra fixa', muscleGroup: 'costas', equipment: BODYWEIGHT_EQUIPMENT, isCompound: true },
+  { id: 'ex-flexao-de-braco', name: 'Flexão de braço', muscleGroup: 'peito', equipment: BODYWEIGHT_EQUIPMENT, isCompound: true },
+  { id: 'ex-mergulho-nas-paralelas', name: 'Mergulho nas paralelas', muscleGroup: 'triceps', equipment: BODYWEIGHT_EQUIPMENT, isCompound: true },
+  { id: 'ex-elevacao-de-pernas', name: 'Elevação de pernas', muscleGroup: 'abdomen', equipment: BODYWEIGHT_EQUIPMENT, isCompound: false },
+]
+
+export const CATALOG: Exercise[] = [...gen.exercises, ...BODYWEIGHT]
 export const CATALOG_IDS = new Set(CATALOG.map((e) => e.id))
 
 export interface PlanTemplate {

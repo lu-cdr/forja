@@ -1,4 +1,4 @@
-import { bestSet, epley1RM, setVolume } from './calc'
+import { beatsRecord, bestScores, mergeBest, setVolume, type BestScores } from './calc'
 import { fromISODate, planWeek, startOfWeek, toISODate } from './dates'
 import { plannedSetsFor } from './plan'
 import type { SetLog, WorkoutSession } from './types'
@@ -222,7 +222,7 @@ export function computeGame(input: GameInput): GameState {
     ...[...new Set(input.measurementDates)].map((d) => ({ date: d, at: `${d}T23:59:59.999Z`, measurement: true as const })),
   ].sort((a, b) => a.at.localeCompare(b.at))
 
-  const bestE1RM = new Map<string, number>()
+  const bestByExercise = new Map<string, BestScores>()
   const lastTop = new Map<string, number>()
   const weekDays = new Map<string, Set<string>>()
   const weeksWithWorkout = new Set<string>()
@@ -266,11 +266,11 @@ export function computeGame(input: GameInput): GameState {
     let prs = 0
     let ups = 0
     for (const [exId, list] of byEx) {
-      const best = bestSet(list)
-      const e = best ? epley1RM(best.weightKg, best.reps) : 0
-      const prev = bestE1RM.get(exId)
-      if (e > 0 && prev !== undefined && e > prev + 0.01) prs++
-      if (e > (prev ?? 0)) bestE1RM.set(exId, e)
+      // com carga: 1RM estimado; peso do corpo/prancha: repetições ou segundos (trilhas separadas)
+      const mine = bestScores(list)
+      const prev = bestByExercise.get(exId) ?? {}
+      if (beatsRecord(mine, prev)) prs++
+      bestByExercise.set(exId, mergeBest(prev, mine))
       const top = Math.max(...list.map((s) => s.weightKg))
       const prevTop = lastTop.get(exId)
       if (prevTop !== undefined && top > prevTop) ups++
@@ -349,17 +349,25 @@ export interface Quest {
   progress?: [number, number]
 }
 
-export function questsFor(input: GameInput, today: string, planWeekdays: number[]): Quest[] {
+/**
+ * Missões da semana. `planWeekdays`: dias com treino no plano por dia da semana.
+ * `rotation`: treinos em sequência, sem dia fixo — a missão do dia aparece enquanto a semana não fecha.
+ */
+export function questsFor(input: GameInput, today: string, planWeekdays: number[], rotation = false): Quest[] {
   const week = startOfWeek(today)
   const sessionsThisWeek = new Set(input.sessions.filter((s) => s.finishedAt && startOfWeek(s.date) === week).map((s) => s.date))
+  const doneToday = input.sessions.some((s) => s.finishedAt && s.date === today)
   const quests: Quest[] = []
-  if (planWeekdays.includes(fromISODate(today).getDay())) {
+  const trainingDay = rotation
+    ? doneToday || sessionsThisWeek.size < input.plannedDaysPerWeek
+    : planWeekdays.includes(fromISODate(today).getDay())
+  if (trainingDay) {
     quests.push({
       id: 'today',
-      title: 'Forjar o treino de hoje',
-      detail: 'Conclua o treino do dia. Cada série vale XP.',
+      title: rotation ? 'Forjar o próximo treino' : 'Forjar o treino de hoje',
+      detail: rotation ? 'Faça o próximo treino da sequência. Cada série vale XP.' : 'Conclua o treino do dia. Cada série vale XP.',
       xp: XP.workout + XP.fullWorkout,
-      done: input.sessions.some((s) => s.finishedAt && s.date === today),
+      done: doneToday,
     })
   }
   if (input.plannedDaysPerWeek > 0)

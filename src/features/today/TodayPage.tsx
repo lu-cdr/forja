@@ -8,7 +8,7 @@ import { BACKUP_REMINDER_DAYS, daysSinceExport } from '../../db/backup'
 import { WEEKDAY_LONG, WEEKDAY_SHORT, fromISODate, planPhase, planWeek, startOfWeek, toISODate } from '../../domain/dates'
 import { MUSCLE_LABEL, type MuscleGroup } from '../../domain/types'
 import { formatDateBR } from '../../domain/dates'
-import { formatTarget } from '../../domain/plan'
+import { daysPerWeek, formatTarget, nextInRotation, sequenceOrder } from '../../domain/plan'
 import { levelProgress, questsFor } from '../../domain/game'
 import { fmt } from '../../domain/calc'
 import { Smith } from '../../components/Smith'
@@ -25,9 +25,13 @@ export function TodayPage() {
   const activeSets = useSessionSets(active?.id)
   const sessions = useFinishedSessions()
   const gameData = useGame()
-  const quests = gameData && planDays ? questsFor(gameData.input, today, planDays.map((p) => p.weekday)) : undefined
+  // "rotation": treinos em sequência (A, B, C…) em qualquer dia; o de hoje é o próximo depois do último feito
+  const rotation = profile?.schedule === 'rotation'
+  const sequence = useMemo(() => sequenceOrder(planDays ?? []), [planDays])
+  const quests = gameData && planDays ? questsFor(gameData.input, today, planDays.map((p) => p.weekday), rotation) : undefined
 
-  const todayPlan = planDays?.find((d) => d.weekday === weekday)
+  const todayPlan = rotation ? nextInRotation(sequence, sessions?.[0]?.planDayId) : planDays?.find((d) => d.weekday === weekday)
+  const position = (id: string) => sequence.findIndex((d) => d.id === id) + 1
   const [pickedId, setPickedId] = useState<string>()
   const selected = planDays?.find((d) => d.id === (pickedId ?? todayPlan?.id))
   const items = usePlanItems(selected?.id)
@@ -45,7 +49,7 @@ export function TodayPage() {
     })
   }, [weekStart])
   const doneDates = new Set((sessions ?? []).map((s) => s.date))
-  const planned = planDays?.length ?? 0
+  const planned = daysPerWeek(profile, planDays?.length ?? 0)
   const doneThisWeek = (sessions ?? []).filter((s) => s.date >= weekStart && s.date <= weekDays[6]).length
 
   const sinceExport = daysSinceExport(profile?.lastExportAt)
@@ -78,7 +82,7 @@ export function TodayPage() {
     <div>
       <PageHeader
         sub={formatDateBR(today, { weekday: 'long', day: 'numeric', month: 'long' })}
-        title={todayPlan && !pickedId ? 'Treino de hoje' : selected ? 'Treino escolhido' : 'Dia de descanso'}
+        title={todayPlan && !pickedId ? (rotation ? 'Próximo treino' : 'Treino de hoje') : selected ? 'Treino escolhido' : 'Dia de descanso'}
         right={
           <div className="flex items-center">
             <Link to="/plano" className="flex min-h-11 items-center rounded-xl px-3 text-sm text-iron-300 active:bg-iron-800">
@@ -119,7 +123,7 @@ export function TodayPage() {
         <div className="flex justify-between frame rounded-2xl bg-iron-850 px-2 py-3">
           {weekDays.map((d) => {
             const wd = fromISODate(d).getDay()
-            const isPlanned = planDays.some((p) => p.weekday === wd)
+            const isPlanned = !rotation && planDays.some((p) => p.weekday === wd)
             const done = doneDates.has(d)
             const isToday = d === today
             return (
@@ -200,7 +204,7 @@ export function TodayPage() {
       ) : selected ? (
         <Section className="mb-5">
           <div className="frame rounded-3xl bg-iron-850 p-5">
-            <p className="text-sm text-iron-400">{WEEKDAY_LONG[selected.weekday]}</p>
+            <p className="text-sm text-iron-400">{rotation ? `Treino ${position(selected.id)} de ${sequence.length} da sequência` : WEEKDAY_LONG[selected.weekday]}</p>
             <h2 className="font-display text-[40px] leading-[0.95] font-bold">{selected.name}</h2>
             <p className="mt-2 text-sm text-iron-300">
               {items?.length ?? 0} exercícios, {totalSets} séries. {groups.map((g) => MUSCLE_LABEL[g] ?? g).join(', ')}.
@@ -274,7 +278,7 @@ export function TodayPage() {
       {!active && (
         <Section title="Outros treinos do plano">
           <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
-            {planDays.map((p) => (
+            {sequence.map((p) => (
               <button
                 key={p.id}
                 type="button"
@@ -284,7 +288,7 @@ export function TodayPage() {
                   p.id === selected?.id ? 'bg-iron-700 text-chalk' : 'bg-iron-850 text-iron-300',
                 )}
               >
-                <span className="block text-[11px] text-iron-400">{WEEKDAY_SHORT[p.weekday]}</span>
+                <span className="block text-[11px] text-iron-400">{rotation ? `Treino ${position(p.id)}` : WEEKDAY_SHORT[p.weekday]}</span>
                 {p.name}
               </button>
             ))}

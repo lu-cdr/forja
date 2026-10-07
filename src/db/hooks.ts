@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { computeGame, type GameInput } from '../domain/game'
+import { daysPerWeek } from '../domain/plan'
 import * as repo from './repo'
 import { getLibraryExercises } from './planEdit'
 
@@ -20,6 +21,7 @@ export const useSessionSets = (sessionId?: string) =>
 export const useFinishedSessions = () => useLiveQuery(() => repo.getFinishedSessions(), [])
 export const useAllSets = () => useLiveQuery(() => repo.getAllSets(), [])
 export const useExercises = () => useLiveQuery(() => repo.getExercises(), [])
+export const useAllPlanExercises = () => useLiveQuery(() => repo.getAllPlanExercises(), [])
 export const useLibraryExercises = () => useLiveQuery(() => getLibraryExercises(), [])
 export const useMeasurements = () => useLiveQuery(() => repo.getMeasurements(), [])
 export const useLastSets = (exerciseId: string, excludeSessionId?: string) =>
@@ -42,7 +44,7 @@ export const useGameInput = (): GameInput | undefined =>
       sessions,
       sets,
       plan,
-      plannedDaysPerWeek: planDays.length,
+      plannedDaysPerWeek: daysPerWeek(profile, planDays.length),
       planStartDate: profile.planStartDate,
       rampUpWeeks: profile.rampUpWeeks,
       measurementDates: measurements.map((m) => m.date),

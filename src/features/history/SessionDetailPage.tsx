@@ -1,8 +1,8 @@
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, Icon, PageHeader, Section, Stat } from '../../components/ui'
-import { useAllSets, useExercises, useGame, useAllPlanDays, useSession } from '../../db/hooks'
+import { Button, Icon, PageHeader, Section, Stat, cx } from '../../components/ui'
+import { useAllPlanExercises, useAllSets, useExercises, useGame, useAllPlanDays, useSession } from '../../db/hooks'
 import { deleteSession } from '../../db/repo'
-import { bestSet, epley1RM, fmt, fmtVolume, totalVolume } from '../../domain/calc'
+import { beatsRecord, bestScores, bestSet, epley1RM, fmt, fmtVolume, totalVolume } from '../../domain/calc'
 import { formatDateBR, formatDuration } from '../../domain/dates'
 
 export function SessionDetailPage() {
@@ -12,6 +12,9 @@ export function SessionDetailPage() {
   const planDays = useAllPlanDays()
   const exercises = useExercises()
   const allSets = useAllSets()
+  const planItems = useAllPlanExercises()
+  // exercícios com meta em segundos (prancha): o número registrado é tempo
+  const timedIds = new Set((planItems ?? []).filter((i) => i.targetUnit === 'seconds').map((i) => i.exerciseId))
   const gameData = useGame()
   const sessionXp = gameData?.game.events.filter((e) => e.sessionId === id).reduce((a, e) => a + e.xp, 0)
 
@@ -31,18 +34,17 @@ export function SessionDetailPage() {
   const exIds = [...new Set(sets.map((s) => s.exerciseId))]
   const dur = session.finishedAt ? Date.parse(session.finishedAt) - Date.parse(session.startedAt) : 0
 
-  // PR = melhor 1RM desta sessão maior que tudo antes dela
+  // recorde = melhor marca desta sessão acima de tudo antes dela, na mesma trilha (carga ou peso do corpo)
   const earlierSessionIds = new Set(
     allSets.filter((s) => s.loggedAt < session.startedAt).map((s) => s.sessionId),
   )
   const prs = new Set(
-    exIds.filter((ex) => {
-      const mine = bestSet(sets.filter((s) => s.exerciseId === ex))
-      const before = allSets.filter((s) => s.exerciseId === ex && earlierSessionIds.has(s.sessionId) && !s.isWarmup)
-      if (!mine || before.length === 0) return false
-      const prev = Math.max(...before.map((s) => epley1RM(s.weightKg, s.reps)))
-      return epley1RM(mine.weightKg, mine.reps) > prev + 0.01
-    }),
+    exIds.filter((ex) =>
+      beatsRecord(
+        bestScores(sets.filter((s) => s.exerciseId === ex)),
+        bestScores(allSets.filter((s) => s.exerciseId === ex && earlierSessionIds.has(s.sessionId))),
+      ),
+    ),
   )
 
   async function onDelete() {
@@ -66,7 +68,7 @@ export function SessionDetailPage() {
       <Section className="mb-5">
         <div className="grid grid-cols-3 gap-3 frame rounded-2xl bg-iron-850 p-4">
           <Stat label="duração" value={formatDuration(dur)} />
-          <Stat label="séries" value={sets.length} />
+          <Stat label="séries" value={sets.filter((s) => !s.isWarmup).length} />
           <Stat label="volume" value={fmtVolume(totalVolume(sets))} />
         </div>
         {sessionXp ? (
@@ -81,6 +83,7 @@ export function SessionDetailPage() {
         {exIds.map((ex) => {
           const list = sets.filter((s) => s.exerciseId === ex).sort((a, b) => a.setNumber - b.setNumber)
           const best = bestSet(list)
+          let work = 0
           return (
             <article key={ex} className="frame rounded-2xl bg-iron-850 p-4">
               <div className="flex items-start justify-between gap-2">
@@ -93,15 +96,25 @@ export function SessionDetailPage() {
               </div>
               <ol className="mt-2 space-y-1">
                 {list.map((s) => (
-                  <li key={s.id} className="flex items-baseline gap-3">
-                    <span className="num w-5 text-iron-500">{s.setNumber}</span>
+                  <li key={s.id} className={cx('flex items-baseline gap-3', s.isWarmup && 'text-iron-400')}>
+                    <span className={cx('num w-5', s.isWarmup ? 'text-pr' : 'text-iron-500')}>{s.isWarmup ? 'A' : ++work}</span>
                     <span className="num text-xl">
-                      {fmt(s.weightKg, 2)} <span className="text-sm text-iron-400">kg</span> × {s.reps}
+                      {s.weightKg > 0 ? (
+                        <>
+                          {fmt(s.weightKg, 2)} <span className="text-sm text-iron-400">kg</span> × {s.reps}
+                        </>
+                      ) : (
+                        <>
+                          {s.reps} <span className="text-sm text-iron-400">{timedIds.has(ex) ? 's' : 'reps'}</span>
+                        </>
+                      )}
                     </span>
+                    {s.isWarmup && <span className="text-xs">aquecimento</span>}
+                    {s.rpe !== undefined && <span className="text-xs text-iron-400">RPE {s.rpe}</span>}
                   </li>
                 ))}
               </ol>
-              {best && (
+              {best && best.weightKg > 0 && (
                 <p className="mt-2 text-xs text-iron-400">
                   1RM estimado: <span className="num text-sm text-iron-300">{fmt(epley1RM(best.weightKg, best.reps))} kg</span>
                 </p>

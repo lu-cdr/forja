@@ -71,29 +71,35 @@ export function DayEditorPage() {
           />
         </label>
 
-        <p className="mt-4 text-xs text-iron-400">Dia da semana</p>
-        <div className="mt-1 grid grid-cols-7 gap-1">
-          {WEEK_ORDER.map((w) => {
-            const isTaken = taken.has(w)
-            const selected = w === day.weekday
-            return (
-              <button
-                key={w}
-                type="button"
-                disabled={isTaken}
-                onClick={() => run(() => updatePlanDay(day.id, { weekday: w }))}
-                aria-pressed={selected}
-                aria-label={`${WEEKDAY_LONG[w]}${isTaken ? ', já tem treino' : ''}`}
-                className={cx(
-                  'min-h-11 rounded-lg text-sm',
-                  selected ? 'bg-rubber font-semibold text-iron-950' : isTaken ? 'bg-iron-900 text-iron-600 line-through' : 'bg-iron-800 text-iron-300',
-                )}
-              >
-                {WEEKDAY_SHORT[w]}
-              </button>
-            )
-          })}
-        </div>
+        {profile.schedule === 'rotation' ? (
+          <p className="mt-3 text-xs text-iron-400">Treinos em sequência: a ordem muda na tela do plano, com as setas.</p>
+        ) : (
+          <>
+            <p className="mt-4 text-xs text-iron-400">Dia da semana</p>
+            <div className="mt-1 grid grid-cols-7 gap-1">
+              {WEEK_ORDER.map((w) => {
+                const isTaken = taken.has(w)
+                const selected = w === day.weekday
+                return (
+                  <button
+                    key={w}
+                    type="button"
+                    disabled={isTaken}
+                    onClick={() => run(() => updatePlanDay(day.id, { weekday: w }))}
+                    aria-pressed={selected}
+                    aria-label={`${WEEKDAY_LONG[w]}${isTaken ? ', já tem treino' : ''}`}
+                    className={cx(
+                      'min-h-11 rounded-lg text-sm',
+                      selected ? 'bg-rubber font-semibold text-iron-950' : isTaken ? 'bg-iron-900 text-iron-600 line-through' : 'bg-iron-800 text-iron-300',
+                    )}
+                  >
+                    {WEEKDAY_SHORT[w]}
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
         {error && <p className="mt-2 text-sm text-danger">{error}</p>}
       </Section>
 

@@ -1,5 +1,35 @@
 import { planPhase, planWeek } from './dates'
-import type { PlanDay, PlanExercise, WorkoutSession } from './types'
+import type { PlanDay, PlanExercise, Profile, WorkoutSession } from './types'
+
+/** Metas de um exercício novo (no plano ou acrescentado num treino). */
+export const DEFAULT_TARGET = { setsPhase1: 2, setsPhase2: 3, repMin: 8, repMax: 12 } as const
+/** Compostos pedem mais descanso. */
+export const defaultRest = (isCompound: boolean) => (isCompound ? 120 : 60)
+
+// ---------- agenda: dias fixos ou sequência ----------
+
+const mondayFirst = (weekday: number) => (weekday + 6) % 7
+
+/** Ordem dos treinos (segunda primeiro). Na sequência, é a ordem A → B → C; reordenar troca os dias da semana entre eles. */
+export function sequenceOrder<T extends Pick<PlanDay, 'weekday'>>(days: T[]): T[] {
+  return [...days].sort((a, b) => mondayFirst(a.weekday) - mondayFirst(b.weekday))
+}
+
+/**
+ * Próximo treino da sequência: o que vem depois do último concluído (volta ao primeiro no fim).
+ * Último treino de um dia que saiu do plano, ou nenhum treino ainda: começa pelo primeiro.
+ */
+export function nextInRotation<T extends Pick<PlanDay, 'id' | 'weekday'>>(days: T[], lastPlanDayId?: string): T | undefined {
+  const seq = sequenceOrder(days)
+  const i = seq.findIndex((d) => d.id === lastPlanDayId)
+  return seq[i < 0 ? 0 : (i + 1) % seq.length]
+}
+
+/** Treinos por semana que fecham a semana: dias do plano, ou a meta escolhida na sequência. */
+export function daysPerWeek(profile: Pick<Profile, 'schedule' | 'rotationDaysPerWeek'> | undefined, activeDays: number): number {
+  if (profile?.schedule === 'rotation' && profile.rotationDaysPerWeek) return Math.min(7, Math.max(1, profile.rotationDaysPerWeek))
+  return activeDays
+}
 
 /** Séries planejadas de um dia de treino numa data (fase 1 na readaptação, fase 2 depois). */
 export function plannedSetsFor(
@@ -19,11 +49,11 @@ export function planSnapshot(
   plan: Pick<PlanExercise, 'planDayId' | 'setsPhase1' | 'setsPhase2'>[],
   days: Pick<PlanDay, 'archived'>[],
   planStartDate: string,
-  rampUpWeeks?: number,
+  profile?: Pick<Profile, 'rampUpWeeks' | 'schedule' | 'rotationDaysPerWeek'>,
 ): Pick<WorkoutSession, 'plannedSets' | 'plannedDaysPerWeek'> {
   return {
-    plannedSets: plannedSetsFor(session.planDayId, session.date, plan, planStartDate, rampUpWeeks),
-    plannedDaysPerWeek: days.filter((d) => !d.archived).length,
+    plannedSets: plannedSetsFor(session.planDayId, session.date, plan, planStartDate, profile?.rampUpWeeks),
+    plannedDaysPerWeek: daysPerWeek(profile, days.filter((d) => !d.archived).length),
   }
 }
 

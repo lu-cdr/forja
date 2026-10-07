@@ -1,3 +1,4 @@
+import { DEFAULT_TARGET, defaultRest, sequenceOrder } from '../domain/plan'
 import type { Exercise, MuscleGroup, PlanDay, PlanExercise } from '../domain/types'
 import { CATALOG_IDS, DEFAULT_TEMPLATE_ID } from '../seed/plan'
 import { newId } from './db'
@@ -54,6 +55,21 @@ export async function updatePlanDay(id: string, patch: Partial<Pick<PlanDay, 'na
   })
 }
 
+/**
+ * Treinos em sequência: muda a posição de um treino (A → B → C). A ordem é a dos dias da semana,
+ * então mover troca o dia da semana com o vizinho — se a pessoa voltar aos dias fixos, a ordem continua.
+ */
+export async function moveDayInSequence(id: string, delta: -1 | 1): Promise<void> {
+  return tx(async () => {
+    const seq = sequenceOrder((await currentDb().planDays.toArray()).filter((d) => !d.archived))
+    const i = seq.findIndex((d) => d.id === id)
+    const j = i + delta
+    if (i < 0 || j < 0 || j >= seq.length) return
+    await currentDb().planDays.update(seq[i].id, { weekday: seq[j].weekday })
+    await currentDb().planDays.update(seq[j].id, { weekday: seq[i].weekday })
+  })
+}
+
 /** Remove o dia do plano. Fica arquivado para o histórico continuar com o nome. */
 export async function archivePlanDay(id: string): Promise<void> {
   return tx(async () => {
@@ -72,8 +88,6 @@ async function renumber(planDayId: string) {
   await Promise.all(items.map((it, i) => (it.order === i + 1 ? null : currentDb().planExercises.update(it.id, { order: i + 1 }))))
 }
 
-export const DEFAULT_ITEM = { setsPhase1: 2, setsPhase2: 3, repMin: 8, repMax: 12, restSeconds: 90 }
-
 export async function addPlanExercise(planDayId: string, exerciseId: string): Promise<string> {
   return tx(async () => {
     const items = await itemsOf(planDayId)
@@ -84,9 +98,8 @@ export async function addPlanExercise(planDayId: string, exerciseId: string): Pr
       planDayId,
       exerciseId,
       order: items.length + 1,
-      ...DEFAULT_ITEM,
-      // compostos pedem mais descanso
-      restSeconds: ex?.isCompound ? 120 : 60,
+      ...DEFAULT_TARGET,
+      restSeconds: defaultRest(!!ex?.isCompound),
     })
     return id
   })

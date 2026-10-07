@@ -1,7 +1,7 @@
 import { CATALOG, DEFAULT_TEMPLATE_ID, SEED_VERSION, getTemplate } from '../seed/plan'
 import { toISODate } from '../domain/dates'
 import { planSnapshot } from '../domain/plan'
-import { lastActivityAt } from '../domain/session'
+import { buildWorkout, lastActivityAt } from '../domain/session'
 import type { ActivityLevel, BodyMeasurement, PlanExercise, Profile, SetLog, SmithLook, TrainingLevel, WorkoutSession } from '../domain/types'
 import { db as defaultDb, newId, type FitDB } from './db'
 
@@ -162,7 +162,7 @@ export async function startSession(planDayId: string, now = new Date()): Promise
     planDayId,
     date,
     startedAt: now.toISOString(),
-    ...planSnapshot({ planDayId, date }, plan, days, profile.planStartDate, profile.rampUpWeeks),
+    ...planSnapshot({ planDayId, date }, plan, days, profile.planStartDate, profile),
   })
   return id
 }
@@ -206,8 +206,67 @@ export async function logSet(s: Omit<SetLog, 'id' | 'loggedAt'>): Promise<string
   return id
 }
 
-export async function updateSet(id: string, patch: Partial<Pick<SetLog, 'weightKg' | 'reps' | 'isWarmup'>>) {
+export async function updateSet(id: string, patch: Partial<Pick<SetLog, 'weightKg' | 'reps' | 'isWarmup' | 'rpe'>>) {
   await db.sets.update(id, patch)
+}
+
+// ---------- mudanças só no treino de hoje ----------
+
+/** Lista do treino como aparece na tela (plano + trocas + acrescentados + exercícios com séries). */
+async function workoutOf(session: WorkoutSession) {
+  const [items, exercises, sets] = await Promise.all([
+    getPlanItems(session.planDayId),
+    db.exercises.toArray(),
+    db.sets.where('sessionId').equals(session.id).toArray(),
+  ])
+  return buildWorkout(items, session, new Map(exercises.map((e) => [e.id, e])), [...new Set(sets.map((s) => s.exerciseId))])
+}
+
+/** Já está no treino como exercício do plano, troca ou acrescentado? (Séries soltas de um exercício trocado não contam.) */
+function alreadyInWorkout(session: WorkoutSession, list: Awaited<ReturnType<typeof workoutOf>>, exerciseId: string, exceptKey?: string) {
+  return list.some(
+    (i) => i.key !== exceptKey && i.exerciseId === exerciseId && (i.origin !== 'extra' || session.extraExercises?.includes(exerciseId)),
+  )
+}
+
+const IN_WORKOUT = 'Esse exercício já está no treino de hoje.'
+
+/** Troca um exercício do plano só neste treino (máquina ocupada). `exerciseId` ausente desfaz a troca. */
+export async function swapSessionExercise(sessionId: string, planExerciseId: string, exerciseId?: string): Promise<void> {
+  const session = await db.sessions.get(sessionId)
+  if (!session) return
+  const item = await db.planExercises.get(planExerciseId)
+  const swaps = { ...session.swaps }
+  if (!exerciseId || exerciseId === item?.exerciseId) delete swaps[planExerciseId]
+  else {
+    if (alreadyInWorkout(session, await workoutOf(session), exerciseId, planExerciseId)) throw new Error(IN_WORKOUT)
+    swaps[planExerciseId] = exerciseId
+  }
+  await db.sessions.update(sessionId, { swaps: Object.keys(swaps).length ? swaps : undefined })
+}
+
+/** Acrescenta um exercício só neste treino. */
+export async function addSessionExercise(sessionId: string, exerciseId: string): Promise<void> {
+  const session = await db.sessions.get(sessionId)
+  if (!session) return
+  if (alreadyInWorkout(session, await workoutOf(session), exerciseId)) throw new Error(IN_WORKOUT)
+  await db.sessions.update(sessionId, { extraExercises: [...(session.extraExercises ?? []), exerciseId] })
+}
+
+/** Tira um exercício acrescentado (só se ainda não tem séries registradas). */
+export async function removeSessionExercise(sessionId: string, exerciseId: string): Promise<void> {
+  const session = await db.sessions.get(sessionId)
+  if (!session) return
+  if ((await db.sets.where('[sessionId+exerciseId]').equals([sessionId, exerciseId]).count()) > 0) {
+    throw new Error('Esse exercício já tem séries registradas. Desmarque as séries antes de tirar.')
+  }
+  const extras = (session.extraExercises ?? []).filter((id) => id !== exerciseId)
+  await db.sessions.update(sessionId, { extraExercises: extras.length ? extras : undefined })
+}
+
+/** Anotação fixa do exercício ("banco no furo 4"), mostrada em todo treino. Vazia apaga. */
+export async function setExerciseNote(exerciseId: string, note: string): Promise<void> {
+  await db.exercises.update(exerciseId, { setupNote: note.trim().slice(0, 140) || undefined })
 }
 
 export async function deleteSet(id: string) {

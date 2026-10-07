@@ -1,4 +1,4 @@
-import { bestSet, epley1RM, setVolume } from './calc'
+import { setScore, setVolume, type ScoreKind } from './calc'
 import { fromISODate, startOfWeek, toISODate } from './dates'
 import type { Exercise, MuscleGroup, SetLog, WorkoutSession } from './types'
 
@@ -37,20 +37,30 @@ export function muscleVolumeForWeek(
   return [...acc.entries()].map(([group, v]) => ({ group, ...v })).sort((a, b) => b.volume - a.volume)
 }
 
-/** Evolução de um exercício: melhor série por sessão. */
+/**
+ * Trilha que representa o exercício nos gráficos e recordes: com carga se alguma série teve carga;
+ * senão, repetições/segundos (peso do corpo, prancha).
+ */
+export function exerciseKind(exerciseId: string, sets: Pick<SetLog, 'exerciseId' | 'weightKg' | 'isWarmup'>[]): ScoreKind {
+  return sets.some((s) => s.exerciseId === exerciseId && !s.isWarmup && s.weightKg > 0) ? 'load' : 'reps'
+}
+
+/** Evolução de um exercício: melhor série por sessão, na trilha do exercício (1RM estimado ou repetições). */
 export function exerciseProgress(
   exerciseId: string,
   sessions: WorkoutSession[],
   sets: SetLog[],
-): { date: string; e1rm: number; topWeight: number; reps: number }[] {
-  const out: { date: string; e1rm: number; topWeight: number; reps: number }[] = []
+): { date: string; value: number; kind: ScoreKind; topWeight: number; reps: number }[] {
+  const kind = exerciseKind(exerciseId, sets)
+  const out: { date: string; value: number; kind: ScoreKind; topWeight: number; reps: number }[] = []
   for (const sess of [...sessions].sort((a, b) => a.startedAt.localeCompare(b.startedAt))) {
-    const mine = sets.filter((s) => s.sessionId === sess.id && s.exerciseId === exerciseId && !s.isWarmup)
-    const best = bestSet(mine)
-    if (!best) continue
+    const mine = sets.filter((s) => s.sessionId === sess.id && s.exerciseId === exerciseId && !s.isWarmup && setScore(s).kind === kind)
+    if (mine.length === 0) continue
+    const best = mine.reduce((a, b) => (setScore(b).value > setScore(a).value ? b : a))
     out.push({
       date: sess.date,
-      e1rm: Math.round(epley1RM(best.weightKg, best.reps) * 10) / 10,
+      value: Math.round(setScore(best).value * 10) / 10,
+      kind,
       topWeight: Math.max(...mine.map((s) => s.weightKg)),
       reps: best.reps,
     })
@@ -60,33 +70,31 @@ export function exerciseProgress(
 
 export interface PersonalRecord {
   exerciseId: string
-  bestE1RM: number
+  /** "load": `best` é o 1RM estimado (kg); "reps": repetições ou segundos sem carga. */
+  kind: ScoreKind
+  best: number
   bestWeight: number
   bestSet: { weightKg: number; reps: number; date: string }
 }
 
-/** Recordes por exercício (maior 1RM estimado e maior carga). */
+/** Recordes por exercício, na trilha do exercício (ver `exerciseKind`). */
 export function personalRecords(sessions: WorkoutSession[], sets: SetLog[]): PersonalRecord[] {
   const dateOf = new Map(sessions.map((s) => [s.id, s.date]))
+  const done = sets.filter((s) => dateOf.has(s.sessionId) && !s.isWarmup && s.reps > 0)
+  const loaded = new Set(done.filter((s) => s.weightKg > 0).map((s) => s.exerciseId)) // = exerciseKind 'load'
   const map = new Map<string, PersonalRecord>()
-  for (const s of sets) {
-    const date = dateOf.get(s.sessionId)
-    if (!date || s.isWarmup) continue
-    const e = epley1RM(s.weightKg, s.reps)
-    const cur = map.get(s.exerciseId)
-    if (!cur) {
-      map.set(s.exerciseId, {
-        exerciseId: s.exerciseId,
-        bestE1RM: e,
-        bestWeight: s.weightKg,
-        bestSet: { weightKg: s.weightKg, reps: s.reps, date },
-      })
-      continue
+  for (const s of done) {
+    const kind: ScoreKind = loaded.has(s.exerciseId) ? 'load' : 'reps'
+    const score = setScore(s)
+    let rec = map.get(s.exerciseId)
+    if (!rec) {
+      rec = { exerciseId: s.exerciseId, kind, best: -1, bestWeight: s.weightKg, bestSet: { weightKg: s.weightKg, reps: s.reps, date: dateOf.get(s.sessionId)! } }
+      map.set(s.exerciseId, rec)
     }
-    cur.bestWeight = Math.max(cur.bestWeight, s.weightKg)
-    if (e > cur.bestE1RM) {
-      cur.bestE1RM = e
-      cur.bestSet = { weightKg: s.weightKg, reps: s.reps, date }
+    rec.bestWeight = Math.max(rec.bestWeight, s.weightKg)
+    if (score.kind === kind && score.value > rec.best) {
+      rec.best = score.value
+      rec.bestSet = { weightKg: s.weightKg, reps: s.reps, date: dateOf.get(s.sessionId)! }
     }
   }
   return [...map.values()]

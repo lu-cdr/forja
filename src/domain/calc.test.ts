@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  beatsRecord,
+  bestScores,
   bestSet,
   bmi,
   deltas,
   epley1RM,
   leanMassKg,
+  mergeBest,
   movingAverageByDays,
+  setScore,
   setVolume,
   shouldIncreaseLoad,
   totalVolume,
@@ -98,5 +102,26 @@ describe('fases do plano', () => {
   it('início da semana é segunda', () => {
     expect(startOfWeek('2026-10-03')).toBe('2026-09-28') // sábado → segunda
     expect(startOfWeek('2026-09-28')).toBe('2026-09-28')
+  })
+})
+
+describe('recordes por trilha (carga × peso do corpo)', () => {
+  const s = (weightKg: number, reps: number, isWarmup = false) => ({ weightKg, reps, isWarmup })
+
+  it('com carga usa o 1RM; sem carga, as repetições (ou segundos)', () => {
+    expect(setScore(s(60, 10))).toEqual({ kind: 'load', value: 80 })
+    expect(setScore(s(0, 12))).toEqual({ kind: 'reps', value: 12 })
+  })
+
+  it('melhores marcas ignoram aquecimento', () => {
+    expect(bestScores([s(0, 8), s(0, 10), s(10, 5), s(40, 10, true)])).toEqual({ reps: 10, load: 10 * (1 + 5 / 30) })
+  })
+
+  it('recorde só dentro da mesma trilha e nunca na primeira vez', () => {
+    expect(beatsRecord({ reps: 11 }, { reps: 10 })).toBe(true)
+    expect(beatsRecord({ reps: 10 }, { reps: 10 })).toBe(false)
+    expect(beatsRecord({ load: 12 }, { reps: 10 })).toBe(false) // primeira vez com colete
+    expect(beatsRecord({ reps: 50 }, {})).toBe(false)
+    expect(mergeBest({ reps: 10 }, { reps: 8, load: 12 })).toEqual({ reps: 10, load: 12 })
   })
 })

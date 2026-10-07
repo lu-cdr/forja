@@ -33,6 +33,42 @@ export function bestSet<T extends Pick<SetLog, 'weightKg' | 'reps' | 'isWarmup'>
 }
 
 /**
+ * Recordes em duas trilhas que não se comparam entre si:
+ * - "load": séries com carga, pelo 1RM estimado;
+ * - "reps": séries sem carga (peso do corpo, prancha), pelas repetições ou segundos.
+ * Barra fixa sem carga bate recorde fazendo mais repetições; com colete, pelo 1RM.
+ */
+export type ScoreKind = 'load' | 'reps'
+export type BestScores = Partial<Record<ScoreKind, number>>
+
+export function setScore(s: Pick<SetLog, 'weightKg' | 'reps'>): { kind: ScoreKind; value: number } {
+  return s.weightKg > 0 ? { kind: 'load', value: epley1RM(s.weightKg, s.reps) } : { kind: 'reps', value: s.reps }
+}
+
+/** Melhor marca de cada trilha (aquecimento não conta). */
+export function bestScores(sets: Pick<SetLog, 'weightKg' | 'reps' | 'isWarmup'>[]): BestScores {
+  const out: BestScores = {}
+  for (const s of sets) {
+    if (s.isWarmup || s.reps <= 0) continue
+    const { kind, value } = setScore(s)
+    if (value > (out[kind] ?? -1)) out[kind] = value
+  }
+  return out
+}
+
+/** Bateu um recorde anterior da mesma trilha? A primeira vez numa trilha não é recorde. */
+export function beatsRecord(current: BestScores, previous: BestScores): boolean {
+  return (Object.keys(current) as ScoreKind[]).some((k) => previous[k] !== undefined && current[k]! > previous[k]! + 0.01)
+}
+
+/** Junta as melhores marcas (para acumular o histórico). */
+export function mergeBest(a: BestScores, b: BestScores): BestScores {
+  const out: BestScores = { ...a }
+  for (const k of Object.keys(b) as ScoreKind[]) out[k] = Math.max(out[k] ?? -1, b[k]!)
+  return out
+}
+
+/**
  * Média móvel por janela de dias corridos (não de pontos).
  * Para cada ponto, faz a média de todos os pontos com data em (d - window, d].
  */

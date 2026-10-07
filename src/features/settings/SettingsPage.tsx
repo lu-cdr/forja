@@ -172,6 +172,23 @@ export function SettingsPage() {
         </label>
       </Section>
 
+      <Section className="mb-6" title="Treino">
+        <label className="frame flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-iron-850 px-4 py-3">
+          <span className="text-[15px]">
+            Registrar esforço (RPE)
+            <span className="block text-xs text-iron-400">
+              Depois de cada série, pergunta quantas repetições ainda sairiam (10 = nenhuma, 8 = duas).
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={!!profile.askRpe}
+            onChange={(e) => void updateProfile({ askRpe: e.target.checked || undefined })}
+            className="size-6 shrink-0 accent-rubber"
+          />
+        </label>
+      </Section>
+
       <Section className="mb-6" title="Perfil">
         <div className="divide-y divide-iron-800 frame rounded-2xl bg-iron-850 px-4 py-1">
           <label className="flex items-center justify-between gap-3 py-2">

@@ -30,6 +30,17 @@ describe('dias', () => {
     expect((await repo.getProfile()).planCustomized).toBe(true)
   })
 
+  it('em sequência, mover troca a posição (e o dia da semana) com o vizinho', async () => {
+    const before = await repo.getPlanDays() // Ter, Qua, Qui, Sex, Sáb
+    const [a, b] = before
+    await edit.moveDayInSequence(b.id, -1)
+    const after = await repo.getPlanDays()
+    expect(after.find((d) => d.id === b.id)?.weekday).toBe(a.weekday)
+    expect(after.find((d) => d.id === a.id)?.weekday).toBe(b.weekday)
+    await edit.moveDayInSequence(b.id, -1) // já é o primeiro
+    expect((await repo.getPlanDays()).find((d) => d.id === b.id)?.weekday).toBe(a.weekday)
+  })
+
   it('remover arquiva: some do plano mas o histórico mantém o nome', async () => {
     const day = await firstDay()
     const [item] = await repo.getPlanItems(day.id)

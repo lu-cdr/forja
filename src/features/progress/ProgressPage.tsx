@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Empty, Icon, PageHeader, Section, Segmented, Stat, cx } from '../../components/ui'
 import { Legend, SimpleLine, TrendChart, VolumeBars } from '../../components/charts'
-import { useAllSets, useExercises, useFinishedSessions, useMeasurements, usePlanDays, useProfile } from '../../db/hooks'
+import { useAllPlanExercises, useAllSets, useExercises, useFinishedSessions, useMeasurements, usePlanDays, useProfile } from '../../db/hooks'
 import { bmi, deltas, fmt, fmtVolume, leanMassKg, movingAverageByDays } from '../../domain/calc'
 import { formatDateBR, startOfWeek, toISODate } from '../../domain/dates'
 import { adherence, exerciseProgress, muscleVolumeForWeek, periodStart, personalRecords, weekStreak, weeklyVolume } from '../../domain/stats'
 import { MUSCLE_LABEL } from '../../domain/types'
+import { daysPerWeek } from '../../domain/plan'
 
 type Period = '4w' | '12w' | '6m' | 'all'
 
@@ -17,6 +18,9 @@ export function ProgressPage() {
   const measurements = useMeasurements()
   const profile = useProfile()
   const planDays = usePlanDays()
+  const planItems = useAllPlanExercises()
+  // exercícios com meta em segundos (prancha): sem carga, o número é tempo
+  const timedIds = new Set((planItems ?? []).filter((i) => i.targetUnit === 'seconds').map((i) => i.exerciseId))
   const [period, setPeriod] = useState<Period>('12w')
   const [exId, setExId] = useState<string>()
   const today = toISODate()
@@ -45,14 +49,16 @@ export function ProgressPage() {
   const vol = weeklyVolume(inPeriod, sets)
   const thisWeek = muscleVolumeForWeek(startOfWeek(today), sessions, sets, exercises)
   const streak = weekStreak(sessions, today)
-  const adh = adherence(sessions, planDays.length, today, 4)
+  const adh = adherence(sessions, daysPerWeek(profile, planDays.length), today, 4)
   const lastWeight = weightData.at(-1)
   const firstWeight = weightData[0]
   const weeksSpan = lastWeight && firstWeight ? (Date.parse(lastWeight.date) - Date.parse(firstWeight.date)) / (7 * 86_400_000) : 0
   const ratePerWeek = weeksSpan >= 1 && lastWeight && firstWeight ? (lastWeight.media - firstWeight.media) / weeksSpan : undefined
   const ratePct = ratePerWeek != null && lastWeight ? (ratePerWeek / lastWeight.media) * 100 : undefined
   const lastBf = [...measurements].reverse().find((m) => m.bodyFatPct != null && m.weightKg != null)
-  const exDelta = deltas(exData.map((d) => d.e1rm))
+  const exDelta = deltas(exData.map((d) => d.value))
+  const exLoad = exData[0]?.kind !== 'reps'
+  const exUnit = exLoad ? 'kg' : currentEx && timedIds.has(currentEx) ? 's' : 'reps'
 
   if (sessions.length === 0 && measurements.length === 0) {
     return (
@@ -174,16 +180,20 @@ export function ProgressPage() {
             ) : (
               <>
                 <div className="mb-2 flex items-end justify-between">
-                  <Stat label="1RM estimado, última sessão" value={fmt(exData.at(-1)!.e1rm)} unit="kg" />
+                  <Stat label={exLoad ? '1RM estimado, última sessão' : exUnit === 's' ? 'melhor tempo, última sessão' : 'melhor série, última sessão'} value={fmt(exData.at(-1)!.value)} unit={exUnit} />
                   {exDelta && (
                     <div className={cx('num text-xl', exDelta.fromFirst >= 0 ? 'text-ok' : 'text-danger')}>
                       {exDelta.fromFirst >= 0 ? '+' : ''}
-                      {fmt(exDelta.fromFirst)} kg
+                      {fmt(exDelta.fromFirst)} {exUnit}
                     </div>
                   )}
                 </div>
-                <SimpleLine data={exData} yKey="e1rm" unit="kg" label="1RM estimado" />
-                <p className="mt-2 text-xs text-iron-400">Melhor série de cada treino convertida em 1RM (fórmula de Epley).</p>
+                <SimpleLine data={exData} yKey="value" unit={exUnit} label={exLoad ? '1RM estimado' : exUnit === 's' ? 'Segundos' : 'Repetições'} />
+                <p className="mt-2 text-xs text-iron-400">
+                  {exLoad
+                    ? 'Melhor série de cada treino convertida em 1RM (fórmula de Epley).'
+                    : 'Sem carga: a evolução é a melhor série de cada treino. Com carga extra, passa a contar o 1RM.'}
+                </p>
               </>
             )}
           </div>
@@ -222,19 +232,19 @@ export function ProgressPage() {
         <Section className="mb-6" title="Recordes pessoais">
           <ul className="divide-y divide-iron-800 frame rounded-2xl bg-iron-850">
             {prs
-              .sort((a, b) => b.bestE1RM - a.bestE1RM)
+              .sort((a, b) => (a.kind === b.kind ? b.best - a.best : a.kind === 'load' ? -1 : 1))
               .map((p) => (
                 <li key={p.exerciseId} className="flex items-center gap-3 px-4 py-3">
                   <Icon name="trophy" className="size-4 shrink-0 text-pr" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px]">{exercises.find((e) => e.id === p.exerciseId)?.name}</p>
                     <p className="text-xs text-iron-400">
-                      {fmt(p.bestSet.weightKg, 2)} kg × {p.bestSet.reps} em {formatDateBR(p.bestSet.date)}
+                      {p.kind === 'load' ? `${fmt(p.bestSet.weightKg, 2)} kg × ${p.bestSet.reps}` : 'sem carga'} em {formatDateBR(p.bestSet.date)}
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="num text-xl">{fmt(p.bestE1RM, 0)}</div>
-                    <div className="text-[11px] text-iron-500">1RM est.</div>
+                    <div className="num text-xl">{fmt(p.best, 0)}</div>
+                    <div className="text-[11px] text-iron-500">{p.kind === 'load' ? '1RM est.' : timedIds.has(p.exerciseId) ? 'segundos' : 'reps'}</div>
                   </div>
                 </li>
               ))}

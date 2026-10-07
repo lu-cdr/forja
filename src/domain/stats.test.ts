@@ -52,13 +52,26 @@ describe('estatísticas', () => {
     const p = exerciseProgress('supino', sessions, sets)
     expect(p.map((x) => x.date)).toEqual(['2026-09-15', '2026-09-22'])
     expect(p[1].topWeight).toBe(70)
-    expect(p[1].e1rm).toBeCloseTo(82.3, 1) // 65×8 > 70×3
+    expect(p[1].kind).toBe('load')
+    expect(p[1].value).toBeCloseTo(82.3, 1) // 65×8 > 70×3
   })
 
   it('recordes pessoais', () => {
     const pr = personalRecords(sessions, sets).find((r) => r.exerciseId === 'supino')!
+    expect(pr.kind).toBe('load')
     expect(pr.bestWeight).toBe(70)
     expect(pr.bestSet).toEqual({ weightKg: 65, reps: 8, date: '2026-09-22' })
+  })
+
+  it('peso do corpo: progresso e recorde em repetições', () => {
+    const bw = [set('a', 'barra', 0, 8), set('b', 'barra', 0, 11), set('c', 'barra', 0, 10)]
+    expect(exerciseProgress('barra', sessions, bw).map((p) => [p.kind, p.value])).toEqual([
+      ['reps', 8],
+      ['reps', 11],
+      ['reps', 10],
+    ])
+    const pr = personalRecords(sessions, bw)[0]
+    expect([pr.kind, pr.best, pr.bestSet.date]).toEqual(['reps', 11, '2026-09-17'])
   })
 
   it('sequência de semanas', () => {

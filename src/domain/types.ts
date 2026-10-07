@@ -51,7 +51,15 @@ export interface Profile {
   activityLevel?: ActivityLevel
   /** Semanas iniciais com menos séries (readaptação). Ausente = 3, como no plano original. */
   rampUpWeeks?: number
+  /** "weekly" (padrão): cada treino tem dia da semana. "rotation": treinos em sequência (A, B, C…), em qualquer dia. */
+  schedule?: Schedule
+  /** Na sequência: quantos treinos por semana conta como semana completa. Ausente = número de treinos do plano. */
+  rotationDaysPerWeek?: number
+  /** Perguntar o esforço (RPE) depois de cada série. */
+  askRpe?: boolean
 }
+
+export type Schedule = 'weekly' | 'rotation'
 
 export type TrainingLevel = 'iniciante' | 'intermediario' | 'avancado'
 export type ActivityLevel = 'sedentario' | 'pouco-ativo' | 'ativo' | 'muito-ativo'
@@ -71,7 +79,12 @@ export interface Exercise {
   isCompound: boolean
   /** Criado pelo usuário no app. */
   custom?: boolean
+  /** Anotação da pessoa que aparece em todo treino, ex.: "banco no furo 4". */
+  setupNote?: string
 }
+
+/** Exercícios sem carga externa: o campo de carga vira "carga extra" (colete, anilha) e pode ficar vazio. */
+export const BODYWEIGHT_EQUIPMENT = 'Peso corporal'
 
 export interface PlanDay {
   id: string
@@ -110,6 +123,10 @@ export interface WorkoutSession {
   plannedSets?: number
   /** Retrato do plano no início do treino: dias de treino por semana. */
   plannedDaysPerWeek?: number
+  /** Trocas só neste treino (máquina ocupada): id do item do plano → exercício usado no lugar. */
+  swaps?: Record<string, string>
+  /** Exercícios acrescentados só neste treino. */
+  extraExercises?: string[]
 }
 
 export interface SetLog {
@@ -119,6 +136,7 @@ export interface SetLog {
   setNumber: number
   weightKg: number
   reps: number
+  /** Esforço percebido, 6–10 (10 = não sairia mais nenhuma repetição). */
   rpe?: number
   isWarmup: boolean
   /** ISO completo — quando a série foi concluída. */

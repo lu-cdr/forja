@@ -159,6 +159,56 @@ describe('sessão de treino', () => {
     expect(await repo.getSession(empty)).toBeUndefined()
   })
 
+  it('troca e acréscimo só no treino de hoje, sem mexer no plano', async () => {
+    const [day] = await repo.getPlanDays()
+    const items = await repo.getPlanItems(day.id)
+    const id = await repo.startSession(day.id)
+    const other = (await repo.getExercises()).find((e) => !items.some((i) => i.exerciseId === e.id))!
+
+    await repo.swapSessionExercise(id, items[0].id, other.id)
+    expect((await repo.getSession(id))?.swaps).toEqual({ [items[0].id]: other.id })
+    expect((await repo.getPlanItems(day.id))[0].exerciseId).toBe(items[0].exerciseId) // plano intacto
+    // não dá para ter o mesmo exercício duas vezes
+    await expect(repo.addSessionExercise(id, other.id)).rejects.toThrow(/já está/)
+    await expect(repo.swapSessionExercise(id, items[1].id, other.id)).rejects.toThrow(/já está/)
+    await repo.swapSessionExercise(id, items[0].id) // desfaz
+    expect((await repo.getSession(id))?.swaps).toBeUndefined()
+
+    await repo.addSessionExercise(id, other.id)
+    expect((await repo.getSession(id))?.extraExercises).toEqual([other.id])
+    await repo.logSet({ sessionId: id, exerciseId: other.id, setNumber: 1, weightKg: 0, reps: 12, isWarmup: false })
+    await expect(repo.removeSessionExercise(id, other.id)).rejects.toThrow(/séries/)
+    await db.sets.where('sessionId').equals(id).delete()
+    await repo.removeSessionExercise(id, other.id)
+    expect((await repo.getSession(id))?.extraExercises).toBeUndefined()
+  })
+
+  it('anotação do exercício fica salva e some quando apagada', async () => {
+    const [ex] = await repo.getExercises()
+    await repo.setExerciseNote(ex.id, '  banco no furo 4 ')
+    expect((await db.exercises.get(ex.id))?.setupNote).toBe('banco no furo 4')
+    await repo.setExerciseNote(ex.id, '')
+    expect((await db.exercises.get(ex.id))?.setupNote).toBeUndefined()
+    // a planilha nova não apaga a anotação
+    await db.profile.update('me', { seedVersion: 1 })
+    await repo.ensureSeeded()
+    await repo.setExerciseNote(ex.id, 'polia na 7')
+    await repo.ensureSeeded()
+    expect((await db.exercises.get(ex.id))?.setupNote).toBe('polia na 7')
+  })
+
+  it('em sequência, o treino grava a meta de treinos por semana', async () => {
+    await repo.updateProfile({ schedule: 'rotation', rotationDaysPerWeek: 4 })
+    const [day] = await repo.getPlanDays()
+    const id = await repo.startSession(day.id)
+    expect((await repo.getSession(id))?.plannedDaysPerWeek).toBe(4)
+  })
+
+  it('catálogo ganha exercícios de peso do corpo', async () => {
+    const names = (await repo.getExercises()).map((e) => e.name)
+    expect(names).toEqual(expect.arrayContaining(['Barra fixa', 'Flexão de braço', 'Mergulho nas paralelas', 'Elevação de pernas']))
+  })
+
   it('sessão sem séries é descartada ao finalizar', async () => {
     const [day] = await repo.getPlanDays()
     const id = await repo.startSession(day.id)

@@ -208,6 +208,7 @@ const PATHS: Record<string, string> = {
   up: 'M12 19V5M6 11l6-6 6 6',
   down: 'M12 5v14M6 13l6 6 6-6',
   swap: 'M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7',
+  more: 'M4.5 12h1M11.5 12h1M18.5 12h1',
   edit: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
   download: 'M12 4v11M7 10l5 5 5-5M5 20h14',

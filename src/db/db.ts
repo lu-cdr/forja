@@ -53,7 +53,7 @@ export async function freezePlanSnapshots(
   if (pending.length === 0) return 0
   const [plan, days, me] = await Promise.all([planExercises.toArray(), planDays.toArray(), profile.get('me')])
   const start = me?.planStartDate ?? pending[0].date
-  for (const s of pending) await sessions.update(s.id, planSnapshot(s, plan, days, start, me?.rampUpWeeks))
+  for (const s of pending) await sessions.update(s.id, planSnapshot(s, plan, days, start, me))
   return pending.length
 }
 
